@@ -12,7 +12,7 @@ SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${BUILD_ARCH}")
 
 include_directories(${CMAKE_SOURCE_DIR} include)
 
-add_executable(shtRipper src/main.cpp version.h)
+add_executable(shtRipper src/main.cpp version.h src/magn_file.cpp)
 add_dependencies(shtRipper auto_increment_version)
 
 
