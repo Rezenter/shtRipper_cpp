@@ -19,21 +19,21 @@ bool ImportNIIFAFile(const char *FileName)
     //HISTOGRAM *H;
     hFile=CreateFile(FileName,
                      GENERIC_READ,
-                     NULL,
-                     NULL,
+                     0,
+                     nullptr,
                      OPEN_EXISTING,
                      FILE_ATTRIBUTE_NORMAL,
-                     NULL);
+                     nullptr);
     if (hFile==INVALID_HANDLE_VALUE)
         return false;
-    Size=GetFileSize(hFile,NULL);
+    Size=GetFileSize(hFile,nullptr);
     buff=(char *)GlobalAlloc(GMEM_FIXED|GMEM_ZEROINIT,Size);
-    ReadFile(hFile,buff,Size,&NBytes,NULL);
+    ReadFile(hFile,buff,Size,&NBytes,nullptr);
     CloseHandle(hFile);
 
     len=0;
     p1=strstr(buff,"t_ms");
-    if (p1==NULL)
+    if (p1==nullptr)
     {
         p1=strstr(buff+4,"t_ms");
     }
@@ -110,17 +110,17 @@ bool ImportNIIFAFile(const char *FileName)
     std::string outFile = "d:/data/cfm/mod/00040032_x1.5.dat";
     hFile=CreateFile(outFile.c_str(),
                      GENERIC_WRITE,
-                     NULL,
-                     NULL,
+                     0,
+                     nullptr,
                      CREATE_ALWAYS,
                      FILE_ATTRIBUTE_NORMAL,
-                     NULL);
+                     nullptr);
     if (hFile==INVALID_HANDLE_VALUE) {
         std::cout << "Failed to open output file" << std::endl;
         std::cout << GetLastError() << std::endl;
         return false;
     }
-    WriteFile(hFile, buff, Size, &NBytes, NULL);
+    WriteFile(hFile, buff, Size, &NBytes, nullptr);
     std::cout << "written: " << NBytes << std::endl;
     CloseHandle(hFile);
 

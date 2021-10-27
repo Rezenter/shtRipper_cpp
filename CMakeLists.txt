@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXE_LINKER_FLAGS "-static")
 set(BUILD_ARCH "-m64")
 
+set(CMAKE_CXX_FLAGS_RELEASE "-Os")
+
+
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${BUILD_ARCH}")
 SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${BUILD_ARCH}")
 
@@ -12,7 +15,11 @@ SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${BUILD_ARCH}")
 
 include_directories(${CMAKE_SOURCE_DIR} include)
 
-add_executable(shtRipper src/main.cpp version.h src/magn_file.cpp)
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+
+add_executable(shtRipper src/main.cpp version.h src/magn_file.cpp src/compress.cpp)
 add_dependencies(shtRipper auto_increment_version)
 
 
