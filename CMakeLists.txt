@@ -1,27 +1,29 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 project(shtRipper)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_EXE_LINKER_FLAGS "-static")
-set(BUILD_ARCH "-m64")
 
-set(CMAKE_CXX_FLAGS_RELEASE "-Os")
-
+#set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+string(REPLACE "-O2" "-Os" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+string(REPLACE "-O2" "-Os" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
 
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${BUILD_ARCH}")
 SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${BUILD_ARCH}")
-
-
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${BUILD_ARCH}")
 
 include_directories(${CMAKE_SOURCE_DIR} include)
 
-set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-set(THREADS_PREFER_PTHREAD_FLAG TRUE)
-find_package(Threads REQUIRED)
+#add_executable(shtRipper src/main.cpp version.h src/compress.cpp)
+#add_dependencies(shtRipper auto_increment_version)
 
-add_executable(shtRipper src/main.cpp version.h src/magn_file.cpp src/compress.cpp)
-add_dependencies(shtRipper auto_increment_version)
+add_library(ripperForPython MODULE src/pythonWrapper.cpp version.h src/compress.cpp)
 
+install(TARGETS ripperForPython
+        CONFIGURATIONS Debug
+        LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/distribution/)
+install(TARGETS ripperForPython
+        CONFIGURATIONS Release
+        LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/distribution/)
 
 ADD_CUSTOM_TARGET(
         auto_increment_version

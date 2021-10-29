@@ -20,19 +20,24 @@ typedef struct {
     char comment[128];
     char unit[128];
     SYSTEMTIME time;  // windows.h
-    int chCount;
+    int nPoints;
     double tMin, tMax;
     double yMin, delta;
-    LONG  data[];  // windows.h
-}HISTOGRAM;
+    double*  data;  // windows.h
+}CombiscopeHistogram;
+
 
 typedef struct {
     unsigned short Vertex[2];
-}GRAPH;
+}CompressionGraph;
 typedef struct {
     const char* data;
     const int size;
 } CompressedHoff;
+typedef struct {
+    int size;
+    char* point;
+} Out;
 class CompressedRLE{
 public:
     unsigned char* data;
@@ -46,10 +51,29 @@ public:
     }
 };
 
+static std::vector<std::thread> workers;
+static std::vector<CompressedHoff> tasks;
+static std::mutex lockIn;
+static std::mutex lockOut;
+static std::vector<CombiscopeHistogram*> results;
+static Out out = {
+        0,
+        nullptr
+};
 
-bool parseSHT(const char * buffer);
+static bool GetBit(const char* Bits, unsigned int index){
+    return (Bits[index / 8]&(1<< (index % 8))) != 0;
+}
+
+void humanizeOut();
+
+Out parseSHT(const char* in);
 
 CompressedRLE* DecompressHoffman(const CompressedHoff* compressed);
-HISTOGRAM* DecompressRLE(const CompressedRLE* compressed);
+CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
+
+int innerTest(int n);
+
+void innerFreeOut();
 
 #endif //SHTRIPPER_COMPRESS_H

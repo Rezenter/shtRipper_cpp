@@ -1,11 +1,5 @@
 #include "compress.h"
 
-std::vector<std::thread> workers;
-std::vector<CompressedHoff> tasks;
-std::mutex lockIn;
-std::mutex lockOut;
-std::vector<HISTOGRAM*> results;
-
 int DefineVersion(const char * str){
     if (strcmp(str, V0) == 0){
         return 0;
@@ -19,14 +13,14 @@ int DefineVersion(const char * str){
     return -1;
 }
 
-HISTOGRAM* DecompressRLE(const CompressedRLE* compressed){
+CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed){
     int j;
     int Delta;
     int NBytes = 0;
     int i = 0;
     while(i < compressed->size){
         Delta = compressed->data[i]&127;
-        if ((compressed->data[i]&128)==0){
+        if ((compressed->data[i]&128) == 0){
             i += 2;
         }else{
             i += Delta + 1;
@@ -37,32 +31,27 @@ HISTOGRAM* DecompressRLE(const CompressedRLE* compressed){
 
     NBytes = 0;
     i = 0;
+
     while(i < compressed->size){
         Delta=compressed->data[i]&127;
-        if ((compressed->data[i]&128)==0){
-            for (j=0;j<Delta;j++){
-                OutBuff[NBytes+j]=compressed->data[i+1];
+        if ((compressed->data[i]&128) == 0){
+            for (j = 0; j < Delta; j++){
+                OutBuff[NBytes + j] = compressed->data[i + 1];
             }
-            i+=2;
+            i += 2;
         }else{
-            for (j=0;j<Delta;j++){
-                OutBuff[NBytes+j]=compressed->data[i+1+j];
+            for(j = 0; j < Delta; j++){
+                OutBuff[NBytes + j] = compressed->data[i + 1 + j];
             }
-            i+=Delta+1;
+            i += Delta + 1;
         }
-        NBytes+=Delta;
+        NBytes += Delta;
     }
 
-    return (HISTOGRAM*)OutBuff;
+    return (CombiscopeHistogram*)OutBuff;
 }
 
-bool GetBit(const char* Bits, unsigned int index){
-    unsigned char Bit = index % 8;
-    unsigned int Byte = index / 8;
-    return (Bits[Byte]&(1<<Bit)) != 0;
-}
-
-bool CreateGraph(const CompressedHoff* signal, GRAPH *Graph){
+bool CreateGraph(const CompressedHoff* signal, CompressionGraph *Graph){
     unsigned short mask[256];
     for(unsigned short & el : mask){
         el = 512;
@@ -92,7 +81,7 @@ bool CreateGraph(const CompressedHoff* signal, GRAPH *Graph){
 }
 
 CompressedRLE* DecompressHoffman(const CompressedHoff* compressed){
-    GRAPH Graph[256], *pGraph;
+    CompressionGraph Graph[256], *pGraph;
     if(!CreateGraph(compressed, Graph)){
         return nullptr;
     }
@@ -118,7 +107,7 @@ CompressedRLE* DecompressHoffman(const CompressedHoff* compressed){
     return RLE;
 }
 
-HISTOGRAM *DecompressHist(const CompressedHoff compressed){
+CombiscopeHistogram *DecompressHist(const CompressedHoff compressed){
     CompressedRLE* signalRLE = DecompressHoffman(&compressed);
     if(signalRLE == nullptr){
         return nullptr;
@@ -132,7 +121,7 @@ HISTOGRAM *DecompressHist(const CompressedHoff compressed){
 }
 
 void worker(){
-    HISTOGRAM* signal;
+    CombiscopeHistogram* signal;
     while(true) {
         lockIn.lock();
         if (tasks.empty()) {
@@ -152,38 +141,131 @@ void worker(){
     }
 }
 
-bool parseSHT(const char* buffer) { // adapted version of RestoreHist(..., int version)
-    int signalSize;
+int histogramSize(int nPoints, int Type){
+    switch (Type>>16)
+    {
+        case 0:
+            return nPoints * sizeof(LONG) + sizeof(CombiscopeHistogram) - sizeof(LONG);
+        case 1:
+            return nPoints * sizeof(double) * 2 + sizeof(CombiscopeHistogram) - sizeof(LONG);
+        case 2:
+            return nPoints * sizeof(double) * 3 + sizeof(CombiscopeHistogram) - sizeof(LONG);
+        default:
+            return 0;
+    }
 
-    const int version = DefineVersion(buffer);
+}
+
+double histogramTmin(CombiscopeHistogram *H){
+    switch (H->type>>16){
+        case 0:
+            return H->tMin;
+        case 1:
+            //return ((double *)(&H->Data[0]))[0];
+        case 2:
+            return ((double *)(&H->data[0]))[0];
+        default:
+            return 0;
+    }
+}
+double histogramTmax(CombiscopeHistogram *H){
+    switch (H->type>>16){
+        case 0:
+            return H->tMax;
+        case 1:
+            return ((double *)(&H->data[0]))[(H->nPoints - 1) * 2];
+        case 2:
+            return ((double *)(&H->data[0]))[(H->nPoints - 1) * 3];
+        default:
+            return 0;
+    }
+}
+double HistogramXValue(CombiscopeHistogram *H, int i){
+    switch (H->type>>16){
+        case 0:
+            return (double)i * (H->tMax - H->tMin) / (H->nPoints - 1) + H->tMin;
+        case 1:
+            return ((double *)(&H->data[0]))[i * 2];
+        case 2:
+            return ((double *)(&H->data[0]))[i * 3];
+        default:
+            return 0;
+    }
+}
+double HistogramYValue(CombiscopeHistogram *H, int i){
+    switch (H->type>>16)
+    {
+        case 0:
+            return H->data[i] * H->delta + H->yMin;
+        case 1:
+            return ((double *)(&H->data[0]))[i * 2 + 1];
+        case 2:
+            return ((double *)(&H->data[0]))[i * 3 + 1];
+        default:
+            return 0;
+    }
+}
+double HistogramEValue(CombiscopeHistogram *H, int i){
+    switch (H->type>>16){
+        case 2:
+            return ((double *)(&H->data[0]))[i * 3 + 2];
+        default:
+            return 0;
+    }
+}
+
+void humanizeOut(){
+    for(CombiscopeHistogram* &signal : results){
+        out.size += histogramSize(signal->nPoints, signal->type);
+    }
+    if(out.size > 0){
+        out.point = new char[out.size];
+        char* curr = out.point;
+        for(CombiscopeHistogram* &signal : results){
+            size_t curr_size = histogramSize(signal->nPoints, signal->type);
+            memcpy(curr, signal, curr_size);
+            curr += curr_size;
+            delete signal;
+        }
+    }
+    results.clear();
+}
+
+Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int version)
+    int signalSize;
+    innerFreeOut();
+
+    const int version = DefineVersion(in);
     size_t currentPos = sizeof(V1);
     if(version == -1){
-        return false;
+        out.size = -1;
+        return out;
     }
 
     int signalCount;
-    memcpy(&signalCount, buffer + currentPos, sizeof(int));
+    memcpy(&signalCount, in + currentPos, sizeof(int));
     currentPos += sizeof(int);
 
     for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
         switch(version){
             case 0: {
-                std::cout << "sht v0 is NOT IMPLEMENTED! please, contact Zhiltsov Nikita" << std::endl;
-                break;
+                out.size = -2;
+                return out;
             }
             case 1:{
-                std::cout << "sht v1 is NOT IMPLEMENTED! please, contact Zhiltsov Nikita" << std::endl;
-                break;
+                out.size = -3;
+                return out;
             }
             case 2:{
-                memcpy(&signalSize, buffer + currentPos, sizeof(int));
+                memcpy(&signalSize, in + currentPos, sizeof(int));
                 currentPos += sizeof(int);
 
                 if(signalSize <= 0){
-                    return false;
+                    out.size = -4;
+                    return out;
                 }
                 tasks.push_back(CompressedHoff {
-                        buffer + currentPos,
+                        in + currentPos,
                         signalSize
                     }
                 );
@@ -192,13 +274,14 @@ bool parseSHT(const char* buffer) { // adapted version of RestoreHist(..., int v
                 break;
             }
             default: {
-                std::cout << "WTF? " << version << std::endl;
-                return false;
+                out.size = -5;
+                return out;
             }
         }
     }
     if(!tasks.empty()){
-        size_t threadCount = std::min((size_t)std::thread::hardware_concurrency(), tasks.size());
+        size_t threadCount = std::thread::hardware_concurrency();
+
         for(size_t i = 0; i < threadCount; i++){
             std::thread thread(worker);
             workers.push_back(move(thread));
@@ -207,11 +290,18 @@ bool parseSHT(const char* buffer) { // adapted version of RestoreHist(..., int v
         for(std::thread &thread : workers){
             thread.join();
         }
+        workers.clear();
 
-        for(HISTOGRAM* &signal : results){
-            //std::cout << "signal: " << signal->name << ", " << signal->unit << std::endl;
-            delete signal;
-        }
+        humanizeOut();
     }
-    return true;
+    return out;
+}
+
+int innerTest(const int n){
+    return n * n;
+}
+
+void innerFreeOut(){
+    delete out.point;
+    out.size = 0;
 }

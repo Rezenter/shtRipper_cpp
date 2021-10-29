@@ -12,7 +12,13 @@ void delay(){
 }
 
 int main(int argc, char* argv[]) {
-    std::cout << "CPP shtRipper, revision:" << REVISION << "\n\n\n" << std::endl << std::flush;
+    std::cout << "CPP shtRipper, revision:" << REVISION << "\n" << std::endl << std::flush;
+
+    /*
+    HINSTANCE hinstLib = LoadLibrary(TEXT("cygripperForPython.dll"));
+    std::cout << "dll loaded OK" << std::endl;
+*/
+
     delay();
     std::cout << std::endl;
 
@@ -30,7 +36,9 @@ int main(int argc, char* argv[]) {
 
         std::cout << "the entire file content is in memory" << std::endl;
 
-        std::cout << parseSHT(memblock) << std::endl;
+        for(int i = 0; i < 3; i++){
+            std::cout << i << ' ' << parseSHT(memblock).size << std::endl;
+        }
 
         std::cout << "processed OK" << std::endl;
 
