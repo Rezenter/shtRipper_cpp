@@ -4,14 +4,23 @@ import time
 #require python >= 3.5
 
 
-#data = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size)).contents
-#b_data = bytes(data)
-
-
 class In(ctypes.Structure):
     _fields_ = [
         ('size', ctypes.c_int),
         ('point', ctypes.POINTER(ctypes.c_char))
+    ]
+
+
+class Time(ctypes.Structure):
+    _fields_ = [
+        ('year', ctypes.c_ushort),
+        ('month', ctypes.c_ushort),
+        ('dayOfWeek', ctypes.c_ushort),
+        ('day', ctypes.c_ushort),
+        ('hour', ctypes.c_ushort),
+        ('min', ctypes.c_ushort),
+        ('sec', ctypes.c_ushort),
+        ('msec', ctypes.c_ushort),
     ]
 
 
@@ -21,8 +30,8 @@ class Signal(ctypes.Structure):
         ('name', ctypes.c_char * 128),
         ('comment', ctypes.c_char * 128),
         ('unit', ctypes.c_char * 128),
-        ('time', ctypes.c_byte * 16),
-        ('ch_count', ctypes.c_int)
+        ('time', Time),
+        ('count', ctypes.c_int)
     ]
 
 
@@ -55,14 +64,22 @@ with open(filename, 'rb') as file:
 
 
 data_p = ctypes.string_at(data, len(data))
-for i in range(5):
+for i in range(1):
     resp = lib.rip(data_p)
 
     data = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size)).contents
     b_data = bytes(data)
 
     header = ctypes.cast(resp.point, ctypes.POINTER(Signal)).contents
-    #print('test signal name: ', header.name.decode(encoding))
+    print('signal name: ', header.name.decode(encoding))
+    print('comment: ', header.comment.decode(encoding))
+    print('unit: ', header.unit.decode(encoding))
+    t = header.time
+    print('time: ', '%d.%d.%d %d:%d:%d.%d' % (t.year, t.month, t.day, t.hour, t.min, t.sec, t.msec))
+
+    if header.type == 1:
+        print(header.count)
+
     #print('iteration %d' % i)
 
 print("--- %.2f seconds ---" % (time.time() - start_time))

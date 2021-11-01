@@ -87,7 +87,7 @@ CompressedRLE* DecompressHoffman(const CompressedHoff* compressed){
     }
 
     int uncompressedSize;
-    memcpy(&uncompressedSize, compressed->data + 511, sizeof(int));
+    std::memcpy(&uncompressedSize, compressed->data + 511, sizeof(int));
     auto RLE = new CompressedRLE(uncompressedSize);
 
     int index = 0;
@@ -134,105 +134,66 @@ void worker(){
 
         signal = DecompressHist(task);
         if(signal != nullptr){
-            lockOut.lock();
-            results.push_back(signal);
-            lockOut.unlock();
+            appendOut(signal);
         }
     }
 }
 
-int histogramSize(int nPoints, int Type){
-    switch (Type>>16)
-    {
-        case 0:
-            return nPoints * sizeof(LONG) + sizeof(CombiscopeHistogram) - sizeof(LONG);
-        case 1:
-            return nPoints * sizeof(double) * 2 + sizeof(CombiscopeHistogram) - sizeof(LONG);
-        case 2:
-            return nPoints * sizeof(double) * 3 + sizeof(CombiscopeHistogram) - sizeof(LONG);
-        default:
-            return 0;
-    }
+void appendOut(const CombiscopeHistogram* histogram){
+    lockOut.lock();
+    std::memcpy(currentOutPos, histogram, SIGNAL_HEADER_SIZE);
+    auto* dBuff = (double*)currentOutPos;
+    int arrSize = histogram->nPoints * sizeof(double);
+    //std::cout << "write: " << histogram->name << ", ~size (MB) = " << arrSize * 1e-6 << ", curr size(MB) = " << (currentOutPos - out.point) * 1e-6 << std::endl;
 
-}
+    currentOutPos += SIGNAL_HEADER_SIZE;
 
-double histogramTmin(CombiscopeHistogram *H){
-    switch (H->type>>16){
+    switch (histogram->type>>16){
         case 0:
-            return H->tMin;
+            std::memcpy(currentOutPos, &histogram->tMin, sizeof(double));
+            std::memcpy(currentOutPos + 1, &histogram->tMax, sizeof(double));
+            currentOutPos += arrSize + 2;
+            break;
         case 1:
-            //return ((double *)(&H->Data[0]))[0];
+            currentOutPos += 2 * arrSize;
+            break;
         case 2:
-            return ((double *)(&H->data[0]))[0];
+            currentOutPos += 3 * arrSize;
+            break;
         default:
-            return 0;
+            break;
     }
-}
-double histogramTmax(CombiscopeHistogram *H){
-    switch (H->type>>16){
-        case 0:
-            return H->tMax;
-        case 1:
-            return ((double *)(&H->data[0]))[(H->nPoints - 1) * 2];
-        case 2:
-            return ((double *)(&H->data[0]))[(H->nPoints - 1) * 3];
-        default:
-            return 0;
-    }
-}
-double HistogramXValue(CombiscopeHistogram *H, int i){
-    switch (H->type>>16){
-        case 0:
-            return (double)i * (H->tMax - H->tMin) / (H->nPoints - 1) + H->tMin;
-        case 1:
-            return ((double *)(&H->data[0]))[i * 2];
-        case 2:
-            return ((double *)(&H->data[0]))[i * 3];
-        default:
-            return 0;
-    }
-}
-double HistogramYValue(CombiscopeHistogram *H, int i){
-    switch (H->type>>16)
-    {
-        case 0:
-            return H->data[i] * H->delta + H->yMin;
-        case 1:
-            return ((double *)(&H->data[0]))[i * 2 + 1];
-        case 2:
-            return ((double *)(&H->data[0]))[i * 3 + 1];
-        default:
-            return 0;
-    }
-}
-double HistogramEValue(CombiscopeHistogram *H, int i){
-    switch (H->type>>16){
-        case 2:
-            return ((double *)(&H->data[0]))[i * 3 + 2];
-        default:
-            return 0;
-    }
-}
+    lockOut.unlock();
+    return;
 
-void humanizeOut(){
-    for(CombiscopeHistogram* &signal : results){
-        out.size += histogramSize(signal->nPoints, signal->type);
-    }
-    if(out.size > 0){
-        out.point = new char[out.size];
-        char* curr = out.point;
-        for(CombiscopeHistogram* &signal : results){
-            size_t curr_size = histogramSize(signal->nPoints, signal->type);
-            memcpy(curr, signal, curr_size);
-            curr += curr_size;
-            delete signal;
+    switch (histogram->type>>16){
+        case 0:{
+            for(int i = 0; i < histogram->nPoints; i++){
+                dBuff[i] = histogram->data[i] * histogram->delta + histogram->yMin; // y coordinates
+            }
+            break;
         }
+        case 1:
+            for(int i = 0; i < histogram->nPoints; i++){
+                dBuff[i] = histogram->data[i * 2]; // time coordinates
+                dBuff[i + arrSize] = histogram->data[i * 2 + 1]; // y coordinates
+            }
+            break;
+        case 2:
+            for(int i = 0; i < histogram->nPoints; i++){
+                dBuff[i] = histogram->data[i * 3]; // time coordinates
+                dBuff[i + arrSize] = histogram->data[i * 3 + 1]; // y coordinates
+                dBuff[i + 2 * arrSize] = histogram->data[i * 3 + 2]; // E coordinates
+            }
+            break;
+        default:
+            break;
     }
-    results.clear();
+    //delete histogram;
 }
 
 Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int version)
-    int signalSize;
+    int compressedSignalSize;
     innerFreeOut();
 
     const int version = DefineVersion(in);
@@ -243,9 +204,10 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
     }
 
     int signalCount;
-    memcpy(&signalCount, in + currentPos, sizeof(int));
+    std::memcpy(&signalCount, in + currentPos, sizeof(int));
     currentPos += sizeof(int);
 
+    int totalInSize = 0;
     for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
         switch(version){
             case 0: {
@@ -257,20 +219,21 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
                 return out;
             }
             case 2:{
-                memcpy(&signalSize, in + currentPos, sizeof(int));
+                std::memcpy(&compressedSignalSize, in + currentPos, sizeof(int));
+                totalInSize += compressedSignalSize;
                 currentPos += sizeof(int);
 
-                if(signalSize <= 0){
+                if(compressedSignalSize <= 0){
                     out.size = -4;
                     return out;
                 }
                 tasks.push_back(CompressedHoff {
                         in + currentPos,
-                        signalSize
+                        compressedSignalSize
                     }
                 );
 
-                currentPos += signalSize;
+                currentPos += compressedSignalSize;
                 break;
             }
             default: {
@@ -280,7 +243,13 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
         }
     }
     if(!tasks.empty()){
-        size_t threadCount = std::thread::hardware_concurrency();
+        size_t threadCount = 1; //std::thread::hardware_concurrency();
+
+        int mem = totalInSize * 15;
+        out.point = new char[mem];
+        //std::cout << "memory = " << mem * 1e-6 << std::endl << std::endl;
+        currentOutPos = out.point;
+        out.size = tasks.size();
 
         for(size_t i = 0; i < threadCount; i++){
             std::thread thread(worker);
@@ -291,8 +260,6 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
             thread.join();
         }
         workers.clear();
-
-        humanizeOut();
     }
     return out;
 }
@@ -304,4 +271,5 @@ int innerTest(const int n){
 void innerFreeOut(){
     delete out.point;
     out.size = 0;
+    currentOutPos = nullptr;
 }

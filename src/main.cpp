@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "the entire file content is in memory" << std::endl;
 
-        for(int i = 0; i < 3; i++){
+        for(int i = 0; i < 1; i++){
             std::cout << i << ' ' << parseSHT(memblock).size << std::endl;
         }
 

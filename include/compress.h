@@ -1,7 +1,6 @@
 #ifndef SHTRIPPER_COMPRESS_H
 #define SHTRIPPER_COMPRESS_H
-#include <windows.h>
-#include <cmath>
+
 #include <thread>
 #include <mutex>
 #include <vector>
@@ -15,17 +14,26 @@ static const char V2[] = "ANALIZER1.2";
 int DefineVersion(const char * str);
 
 typedef struct {
+    unsigned short year;
+    unsigned short month;
+    unsigned short dayOfWeek;
+    unsigned short day;
+    unsigned short hour;
+    unsigned short minute;
+    unsigned short second;
+    unsigned short milliseconds;
+} Time;
+typedef struct {
     int type;
     char name[128];
     char comment[128];
     char unit[128];
-    SYSTEMTIME time;  // windows.h
+    Time time;
     int nPoints;
-    double tMin, tMax;
-    double yMin, delta;
-    double*  data;  // windows.h
+    double tMin, tMax, yMin, delta; // omitted in output
+    double  data[];
 }CombiscopeHistogram;
-
+static const int SIGNAL_HEADER_SIZE = 404;
 
 typedef struct {
     unsigned short Vertex[2];
@@ -55,22 +63,21 @@ static std::vector<std::thread> workers;
 static std::vector<CompressedHoff> tasks;
 static std::mutex lockIn;
 static std::mutex lockOut;
-static std::vector<CombiscopeHistogram*> results;
 static Out out = {
         0,
         nullptr
 };
+static char* currentOutPos = nullptr;
 
 static bool GetBit(const char* Bits, unsigned int index){
     return (Bits[index / 8]&(1<< (index % 8))) != 0;
 }
 
-void humanizeOut();
-
 Out parseSHT(const char* in);
 
 CompressedRLE* DecompressHoffman(const CompressedHoff* compressed);
 CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
+void appendOut(const CombiscopeHistogram*);
 
 int innerTest(int n);
 
