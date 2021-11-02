@@ -1,8 +1,8 @@
 import ctypes
 import time
+import os.path
 
 #require python >= 3.5
-
 
 class In(ctypes.Structure):
     _fields_ = [
@@ -58,46 +58,69 @@ if lib.test(5) != 25:
 filename = 'd:/data/cfm/original/sht40808.SHT'
 #filename = 'd:/data/cfm/original/eft38800.sht'
 
-start_time = time.time()
-with open(filename, 'rb') as file:
-    data = file.read()
 
+def read_sht(filename: str) -> dict:
+    if not os.path.isfile(filename):
+        err: str = 'requested file "%s" does not exist.' % filename
+        print(err)
+        return {
+            'ok': False,
+            'err': err
+        }
+    with open(filename, 'rb') as file:
+        data = file.read()
+    data_p = ctypes.string_at(data, len(data))
 
-data_p = ctypes.string_at(data, len(data))
-for i in range(10):
+    #try-catch
     resp = lib.rip(data_p)
 
-    curr = 0
-    header = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(Signal)).contents
-    print('signal name: ', header.name.decode(encoding))
-    print('comment: ', header.comment.decode(encoding))
-    print('unit: ', header.unit.decode(encoding))
-    t = header.time
-    print('time: ', '%d.%d.%d %d:%d:%d.%d' % (t.year, t.month, t.day, t.hour, t.min, t.sec, t.msec))
-    if header.type >> 16 == 0:
-        print(header.count)
+    res: dict = {}
+
+    curr: int = 0
+    for signal_count in range(resp.size):
+        header = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(Signal)).contents
         curr += 408
-        t_min = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
-        print('tMin = ', t_min)
-        curr += 8
-        t_max = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
-        print('tMax = ', t_max)
-        curr += 8
+        #print('signal name: ', header.name.decode(encoding))
+        #print('comment: ', header.comment.decode(encoding))
+        #print('unit: ', header.unit.decode(encoding))
+        t = header.time
+        #print('time: ', '%d.%d.%d %d:%d:%d.%d' % (t.year, t.month, t.day, t.hour, t.min, t.sec, t.msec))
+        #print(header.count)
+        signal = {
+            'comment': header.comment.decode(encoding),
+            'unit': header.unit.decode(encoding),
+            'time': '%d.%d.%d %d:%d:%d.%d' % (t.year, t.month, t.day, t.hour, t.min, t.sec, t.msec)
+        }
+        if header.type >> 16 == 0:
+            t_min = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
+            curr += 8
+            t_max = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
+            curr += 8
+            data = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
+            curr += header.count * 8
+            t_mult = (t_max - t_min) / (header.count - 1)
+            signal['x'] = [i * t_mult + t_min for i in range(header.count)]
+            signal['y'] = data[:]
 
-        data = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
-        curr += header.count * 8
+        elif header.type >> 16 == 1:
+            print('!!! this file type is not supported yet. Please, give it to Nikita.')
+            curr += header.count * 8 * 2
+        elif header.type >> 16 == 2:
+            print('!!! this file type is not supported yet. Please, give it to Nikita.')
+            curr += header.count * 8 * 3
+        res[header.name.decode(encoding)] = signal
+    return res
 
-        '''with open('out.txt', 'w') as file:
-            for i in range(header.count):
-                file.write('%.6f, %.3f\n' % (i * (t_max - t_min) / (header.count - 1) + t_min,
-                                             data[i]))'''
-        #print('iteration %d' % i)
 
+start_time = time.time()
+for iteration in range(1):
+    res = read_sht(filename)
+    #print('yeah')
 print("--- %.2f seconds ---" % (time.time() - start_time))
 lib.freeOut()
 
 
-for i in range(1000000):
+for i in range(5000000):
     d = 56784678 / 5423621543
 
 print('OK.')

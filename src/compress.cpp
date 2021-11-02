@@ -243,10 +243,9 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
     if(!tasks.empty()){
         size_t threadCount = std::thread::hardware_concurrency();
 
-        int mem = totalInSize * 15;
-        out.point = new unsigned char[mem];
+        out.point = new unsigned char[totalInSize * 15];
         currentOutPos = out.point;
-
+        out.size = tasks.size();
 
         for(size_t i = 0; i < threadCount; i++){
             std::thread thread(worker);
@@ -258,7 +257,6 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
         }
         workers.clear();
     }
-    out.size = currentOutPos - out.point;
     return out;  // use currOutPos
 }
 
