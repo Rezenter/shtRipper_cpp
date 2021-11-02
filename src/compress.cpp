@@ -47,7 +47,6 @@ CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed){
         }
         NBytes += Delta;
     }
-
     return (CombiscopeHistogram*)OutBuff;
 }
 
@@ -130,6 +129,7 @@ void worker(){
         }
         CompressedHoff task = tasks.back();
         tasks.pop_back();
+
         lockIn.unlock();
 
         signal = DecompressHist(task);
@@ -142,17 +142,15 @@ void worker(){
 void appendOut(const CombiscopeHistogram* histogram){
     lockOut.lock();
     std::memcpy(currentOutPos, histogram, SIGNAL_HEADER_SIZE);
-    auto* dBuff = (double*)currentOutPos;
-    int arrSize = histogram->nPoints * sizeof(double);
-    //std::cout << "write: " << histogram->name << ", ~size (MB) = " << arrSize * 1e-6 << ", curr size(MB) = " << (currentOutPos - out.point) * 1e-6 << std::endl;
-
     currentOutPos += SIGNAL_HEADER_SIZE;
+    auto* dBuff = (double*)currentOutPos;
 
+    int arrSize = histogram->nPoints * sizeof(double);
     switch (histogram->type>>16){
         case 0:
-            std::memcpy(currentOutPos, &histogram->tMin, sizeof(double));
-            std::memcpy(currentOutPos + 1, &histogram->tMax, sizeof(double));
-            currentOutPos += arrSize + 2;
+            std::memcpy(currentOutPos, &histogram->tMin, 2 * sizeof(double));
+            dBuff = (double*)(currentOutPos + 2 * sizeof(double));
+            currentOutPos += arrSize + 2 * sizeof(double);
             break;
         case 1:
             currentOutPos += 2 * arrSize;
@@ -164,32 +162,32 @@ void appendOut(const CombiscopeHistogram* histogram){
             break;
     }
     lockOut.unlock();
-    return;
 
     switch (histogram->type>>16){
         case 0:{
+            auto* cData = (unsigned char*)&histogram->data;
+            LongFlip flip{0};
             for(int i = 0; i < histogram->nPoints; i++){
-                dBuff[i] = histogram->data[i] * histogram->delta + histogram->yMin; // y coordinates
+                flip.asChar[0] = cData[i];
+                flip.asChar[1] = cData[histogram->nPoints + i];
+                flip.asChar[2] = cData[histogram->nPoints * 2 + i];
+                flip.asChar[3] = cData[histogram->nPoints * 3 + i];
+
+                dBuff[i] = flip.asLong * histogram->delta + histogram->yMin; // y coordinates
             }
             break;
         }
         case 1:
-            for(int i = 0; i < histogram->nPoints; i++){
-                dBuff[i] = histogram->data[i * 2]; // time coordinates
-                dBuff[i + arrSize] = histogram->data[i * 2 + 1]; // y coordinates
-            }
+            std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
             break;
         case 2:
-            for(int i = 0; i < histogram->nPoints; i++){
-                dBuff[i] = histogram->data[i * 3]; // time coordinates
-                dBuff[i + arrSize] = histogram->data[i * 3 + 1]; // y coordinates
-                dBuff[i + 2 * arrSize] = histogram->data[i * 3 + 2]; // E coordinates
-            }
+            std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
             break;
         default:
             break;
     }
-    //delete histogram;
+
+    delete histogram;
 }
 
 Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int version)
@@ -243,13 +241,12 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
         }
     }
     if(!tasks.empty()){
-        size_t threadCount = 1; //std::thread::hardware_concurrency();
+        size_t threadCount = std::thread::hardware_concurrency();
 
         int mem = totalInSize * 15;
-        out.point = new char[mem];
-        //std::cout << "memory = " << mem * 1e-6 << std::endl << std::endl;
+        out.point = new unsigned char[mem];
         currentOutPos = out.point;
-        out.size = tasks.size();
+
 
         for(size_t i = 0; i < threadCount; i++){
             std::thread thread(worker);
@@ -261,7 +258,8 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
         }
         workers.clear();
     }
-    return out;
+    out.size = currentOutPos - out.point;
+    return out;  // use currOutPos
 }
 
 int innerTest(const int n){

@@ -64,23 +64,34 @@ with open(filename, 'rb') as file:
 
 
 data_p = ctypes.string_at(data, len(data))
-for i in range(1):
+for i in range(10):
     resp = lib.rip(data_p)
 
-    data = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size)).contents
-    b_data = bytes(data)
-
-    header = ctypes.cast(resp.point, ctypes.POINTER(Signal)).contents
+    curr = 0
+    header = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(Signal)).contents
     print('signal name: ', header.name.decode(encoding))
     print('comment: ', header.comment.decode(encoding))
     print('unit: ', header.unit.decode(encoding))
     t = header.time
     print('time: ', '%d.%d.%d %d:%d:%d.%d' % (t.year, t.month, t.day, t.hour, t.min, t.sec, t.msec))
-
-    if header.type == 1:
+    if header.type >> 16 == 0:
         print(header.count)
+        curr += 408
+        t_min = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
+        print('tMin = ', t_min)
+        curr += 8
+        t_max = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
+        print('tMax = ', t_max)
+        curr += 8
 
-    #print('iteration %d' % i)
+        data = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
+        curr += header.count * 8
+
+        '''with open('out.txt', 'w') as file:
+            for i in range(header.count):
+                file.write('%.6f, %.3f\n' % (i * (t_max - t_min) / (header.count - 1) + t_min,
+                                             data[i]))'''
+        #print('iteration %d' % i)
 
 print("--- %.2f seconds ---" % (time.time() - start_time))
 lib.freeOut()

@@ -31,9 +31,9 @@ typedef struct {
     Time time;
     int nPoints;
     double tMin, tMax, yMin, delta; // omitted in output
-    double  data[];
+    unsigned char data[10];
 }CombiscopeHistogram;
-static const int SIGNAL_HEADER_SIZE = 404;
+static const int SIGNAL_HEADER_SIZE = 408;
 
 typedef struct {
     unsigned short Vertex[2];
@@ -44,7 +44,7 @@ typedef struct {
 } CompressedHoff;
 typedef struct {
     int size;
-    char* point;
+    unsigned char* point;
 } Out;
 class CompressedRLE{
 public:
@@ -59,6 +59,13 @@ public:
     }
 };
 
+union LongFlip{
+    long asLong;
+    unsigned char asChar[4];
+};
+
+
+
 static std::vector<std::thread> workers;
 static std::vector<CompressedHoff> tasks;
 static std::mutex lockIn;
@@ -67,7 +74,7 @@ static Out out = {
         0,
         nullptr
 };
-static char* currentOutPos = nullptr;
+static unsigned char* currentOutPos = nullptr;
 
 static bool GetBit(const char* Bits, unsigned int index){
     return (Bits[index / 8]&(1<< (index % 8))) != 0;
