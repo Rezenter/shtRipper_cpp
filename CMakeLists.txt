@@ -14,7 +14,7 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${BUILD_ARCH}")
 include_directories(${CMAKE_SOURCE_DIR} include)
 
 add_executable(shtRipper src/main.cpp version.h src/compress.cpp)
-#add_dependencies(shtRipper auto_increment_version)
+add_dependencies(shtRipper auto_increment_version)
 
 add_library(ripperForPython MODULE src/pythonWrapper.cpp version.h src/compress.cpp)
 
