@@ -62,7 +62,7 @@ class Ripper:
         print('ripper normal exit')
         self.lib.freeOut()
 
-    def read_sht(self, filename: str) -> dict:  # add "defaultX" option.
+    def read(self, filename: str) -> dict:  # add "defaultX" option.
         if not os.path.isfile(filename):
             err: str = 'requested file "%s" does not exist.' % filename
             print(err)

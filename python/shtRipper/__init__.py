@@ -1,4 +1,4 @@
-from python.shtRipper import shtRipper
+import shtRipper
 
 ripper = shtRipper.Ripper()
 
