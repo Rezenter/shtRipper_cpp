@@ -1,5 +1,5 @@
 import ctypes
-import os.path
+from pathlib import Path
 
 # require python >= 3.5 for ctypes compiler match
 
@@ -43,7 +43,7 @@ class Ripper:
     def __init__(self):
         print('shtRipper v2')
 
-        self.lib = ctypes.cdll.LoadLibrary('binary/ripperForPython.dll')
+        self.lib = ctypes.cdll.LoadLibrary('%s/binary/ripperForPython.dll' % Path(__file__).parent)
 
         self.lib.test.argtypes = [ctypes.c_int]
         self.lib.test.restype = ctypes.c_int
@@ -63,14 +63,15 @@ class Ripper:
         self.lib.freeOut()
 
     def read(self, filename: str) -> dict:  # add "defaultX" option.
-        if not os.path.isfile(filename):
+        path = Path(filename)
+        if not path.is_file():
             err: str = 'requested file "%s" does not exist.' % filename
             print(err)
             return {
                 'ok': False,
                 'err': err
             }
-        with open(filename, 'rb') as file:
+        with open(path, 'rb') as file:
             data = file.read()
         data_p = ctypes.string_at(data, len(data))
 

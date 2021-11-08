@@ -6,13 +6,13 @@ with codecs.open('README.md', encoding='utf-8') as fh:
 
 setuptools.setup(
     name="shtRipper_cpp",
-    version="1.0.1",
+    version="1.1.1",
     author="Rezenter",
     author_email="nisovru@gmail.com",
     description="C++ parser of .sht files.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Rezenter/shtRipper_cpp",
+    url="https://github.com/Rezenter/shtRipper_cpp/tree/master/python",
     packages=['shtRipper'],
     classifiers=[
         "Programming Language :: Python :: 3.5",

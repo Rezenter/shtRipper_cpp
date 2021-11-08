@@ -1,4 +1,4 @@
-from python.shtRipper import shtRipper
+from python.shtRipper import shtRipper_entry
 import time
 
 filename = 'd:/data/cfm/original/sht40808.SHT'
