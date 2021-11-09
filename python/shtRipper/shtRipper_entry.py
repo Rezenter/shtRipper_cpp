@@ -1,5 +1,6 @@
 import ctypes
 from pathlib import Path
+import sys
 
 # require python >= 3.5 for ctypes compiler match
 
@@ -43,7 +44,8 @@ class Ripper:
     def __init__(self):
         print('shtRipper v2')
 
-        self.lib = ctypes.cdll.LoadLibrary('%s/binary/ripperForPython.dll' % Path(__file__).parent)
+        self.lib = ctypes.cdll.LoadLibrary('%s/binary/ripperForPython_%d.dll' %
+                                           (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
 
         self.lib.test.argtypes = [ctypes.c_int]
         self.lib.test.restype = ctypes.c_int

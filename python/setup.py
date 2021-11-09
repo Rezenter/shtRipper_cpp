@@ -6,7 +6,7 @@ with codecs.open('README.md', encoding='utf-8') as fh:
 
 setuptools.setup(
     name="shtRipper_cpp",
-    version="1.1.1",
+    version="1.1.2",
     author="Rezenter",
     author_email="nisovru@gmail.com",
     description="C++ parser of .sht files.",
