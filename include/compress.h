@@ -39,6 +39,18 @@ typedef struct {
     unsigned short Vertex[2];
 }CompressionGraph;
 typedef struct {
+    unsigned char Bits[32];
+    unsigned char NBits;
+}Code;
+class Knot{
+public:
+    int weight;
+    int parent;
+
+    Knot() : weight(0), parent(255){};
+};
+
+typedef struct {
     const char* data;
     const int size;
 } CompressedHoff;
@@ -65,7 +77,6 @@ union LongFlip{
 };
 
 
-
 static std::vector<std::thread> workers;
 static std::vector<CompressedHoff> tasks;
 static std::mutex lockIn;
@@ -81,10 +92,13 @@ static bool GetBit(const char* Bits, unsigned int index){
 }
 
 Out parseSHT(const char* in);
-
 CompressedRLE* DecompressHoffman(const CompressedHoff* compressed);
 CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
 void appendOut(const CombiscopeHistogram*);
+
+void packSHT();
+CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed);
+CompressedHoff compressHoffman(const CompressedRLE* uncompressed);
 
 int innerTest(int n);
 

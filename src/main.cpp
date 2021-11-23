@@ -13,7 +13,6 @@ void delay(){
 
 
 int main(int argc, char* argv[]) {
-
     std::cout << "CPP shtRipper, revision:" << REVISION << "\n" << std::endl << std::flush;
 
     /*

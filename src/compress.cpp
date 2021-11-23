@@ -1,4 +1,5 @@
 #include "compress.h"
+#include <fstream>
 
 int DefineVersion(const char * str){
     if (strcmp(str, V0) == 0){
@@ -115,7 +116,6 @@ CombiscopeHistogram *DecompressHist(const CompressedHoff compressed){
     auto *signal = DecompressRLE(signalRLE);
     delete signalRLE;
 
-    //ChangeByteOrder(&signal->Data[0], HistogramDataSize(signal->NChannels, signal->Type));
     return signal;
 }
 
@@ -242,7 +242,7 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
     }
     if(!tasks.empty()){
         size_t threadCount = std::thread::hardware_concurrency();
-        
+
         out.point = new unsigned char[totalInSize * 15];
         currentOutPos = out.point;
         out.size = tasks.size();
@@ -258,6 +258,322 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
         workers.clear();
     }
     return out;  // use currOutPos
+}
+
+CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed){
+    int sizeIn = SIGNAL_HEADER_SIZE + uncompressed->nPoints * sizeof(double);
+    auto* data = (unsigned char*) uncompressed;
+
+    unsigned char Counter;
+    int i = 0;
+    int NBytes = 0;
+    while (i < sizeIn){
+        if(i != sizeIn - 1 && data[i] == data[i+1]){
+            Counter = 2;
+            i += 2;
+            while((i < sizeIn) &&
+                    (data[i] == data[i - 1]) &&
+                    (Counter < 127)){
+                i++;
+                Counter++;
+            }
+            NBytes += 2;
+        }else{
+            Counter=1;
+            while (true){
+                i++;
+                if (i >= sizeIn)
+                    break;
+                if (i < sizeIn - 1){
+                    if (data[i] == data[i + 1])
+                        break;
+                }
+                if (Counter == 127)
+                    break;
+                Counter++;
+            }
+            NBytes += Counter + 1;
+        }
+    }
+
+    auto* out = new CompressedRLE(NBytes);
+
+    i = 0;
+    NBytes = 0;
+    while (i < sizeIn){
+        if(i != sizeIn - 1 && data[i] == data[i + 1]){
+            Counter = 2;
+            out->data[NBytes + 1] = data[i];
+            i += 2;
+            while((i < sizeIn) &&
+                    (data[i] == data[i - 1]) &&
+                    (Counter < 127)){
+                i++;
+                Counter++;
+            }
+            out->data[NBytes] = Counter;
+            NBytes += 2;
+        }else{
+            Counter = 1;
+            out->data[NBytes + Counter] = data[i];
+            while(true){
+                i++;
+                if(i >= sizeIn)
+                    break;
+                if (i < sizeIn - 1){
+                    if(data[i] == data[i + 1])
+                        break;
+                }
+                if(Counter == 127)
+                    break;
+                Counter++;
+                out->data[NBytes + Counter] = data[i];
+            }
+            out->data[NBytes] = Counter|128;
+            NBytes += Counter + 1;
+        }
+    }
+
+    return out;
+}
+
+void CreateCode(const unsigned char *table, Code *code){
+    bool bits[256];
+    unsigned short mask[256];
+    for(unsigned short & entry : mask){
+        entry = 512;
+    }
+
+    unsigned char vertex;
+    unsigned short prevVertex;
+    unsigned char Bit, Mask;
+    unsigned int Byte;
+
+    for(int i = 0; i < 256; i++){
+        code[i].NBits = 0;
+        if (table[i] != 255){
+            prevVertex = i;
+            vertex=table[i];
+            while (vertex != 255){
+                if (mask[vertex] == 512){
+                    mask[vertex] = prevVertex;
+                }
+                bits[code[i].NBits] = mask[vertex] != prevVertex;
+                code[i].NBits++;
+                prevVertex = vertex + 256;
+                vertex = table[prevVertex];
+            }
+
+            for (int j = 0; j < code[i].NBits; j++){
+                Byte = (code[i].NBits - 1 - j) / 8;
+                Bit = (code[i].NBits - 1 - j) % 8;
+                Mask =~ (1<<Bit);
+                code[i].Bits[Byte] = code[i].Bits[Byte]&Mask;
+                code[i].Bits[Byte] =code[i].Bits[Byte]|(bits[j]<<Bit);
+            }
+        }
+    }
+}
+
+int CompressedSize(const CompressedRLE* uncompressed, const Code *Code){
+    int Size = 0;
+    for(int i = 0; i < uncompressed->size; i++){
+        Size += Code[uncompressed->data[i]].NBits;
+    }
+    return (Size + 8) / 8;
+}
+
+void CompressHoffman(const CompressedRLE* uncompressed, Code *Code, unsigned char *OutBuff){
+    int Index = 0;
+    unsigned char Bit, Mask;
+    unsigned int Byte;
+    for (int i = 0; i < uncompressed->size; i++){
+        for (int j = 0; j < Code[uncompressed->data[i]].NBits; j++){
+            Byte = j / 8;
+            Bit = j % 8;
+            bool b = (Code[uncompressed->data[i]].Bits[Byte]&(1<<Bit)) != 0;
+
+            //possible error here
+            Byte = Index / 8;
+            Bit = Index % 8;
+            Mask =~ (1<<Bit);
+            OutBuff[Byte] = OutBuff[Byte]&Mask;
+            OutBuff[Byte] = OutBuff[Byte]|(b<<Bit);
+
+            Index++;
+        }
+    }
+}
+
+void Sort(Knot **pKnot, int left, int right){
+    int i, j;
+    Knot *comp;
+    Knot *value;
+    i = left;
+    j = right;
+    comp = pKnot[(left + right) / 2];
+    while (i <= j){
+        while ((pKnot[i]->weight > comp->weight) && (i < right))
+            i++;
+        while ((pKnot[j]->weight) < comp->weight && (j > left))
+            j--;
+        if (i <= j){
+            value = pKnot[i];
+            pKnot[i] = pKnot[j];
+            pKnot[j] = value;
+            i++;
+            j--;
+        }
+    }
+    if(left < j)
+        Sort(pKnot, left, j);
+    if(i < right)
+        Sort(pKnot, i, right);
+}
+
+void CreateTable(const CompressedRLE* uncompressed,	unsigned char *Table){
+    int i;
+    Knot Knot[511], *pKnot[256];
+
+    for(i = 0; i < 511; i++){ //this must be redundant
+        Knot[i].parent = 255;
+        Knot[i].weight = 0;
+    }
+
+    for(i = 0; i < uncompressed->size; i++){
+        Knot[uncompressed->data[i]].weight++;
+    }
+
+    int NKnots = 0;
+    int NSymbols = 0;
+
+    for(i = 0; i < 256; i++){
+        if (Knot[i].weight > 0){
+            pKnot[NKnots] = &Knot[i];
+            NKnots++;
+            NSymbols++;
+        }
+    }
+
+    for(i = 0; i < NSymbols - 1; i++){
+        Sort(pKnot,0,NKnots-1);
+        Knot[256 + i].weight = pKnot[NKnots - 2]->weight + pKnot[NKnots - 1]->weight;
+        pKnot[NKnots - 2]->parent = i;
+        pKnot[NKnots - 1]->parent = i;
+        pKnot[NKnots - 2] = &Knot[256 + i];
+        NKnots--;
+    }
+
+    for(i = 0; i < 511; i++){
+        Table[i] = (unsigned char)(Knot[i].parent);
+    }
+}
+
+CompressedHoff compressHoffman(const CompressedRLE* uncompressed){
+    unsigned char Table[511];
+    int cSize;
+
+    Code Code[256];
+    CreateTable(uncompressed, Table);
+    CreateCode(Table, Code);
+    cSize = CompressedSize(uncompressed, Code);
+
+    auto *OutBuff = new unsigned char [cSize + 511 + sizeof(int)];
+    memcpy(OutBuff,Table,511);
+
+    memcpy(OutBuff + 511, &uncompressed->size, sizeof(int));
+    CompressHoffman(uncompressed, Code, OutBuff + 511 + sizeof(int));
+
+    return CompressedHoff{
+            (char*) OutBuff,
+            (int) (cSize + 511 + sizeof(int))
+    };
+}
+
+void packSHT(){
+    CombiscopeHistogram in = {
+            2,
+            "Test signal name",
+            "This is comment",
+            "parrot",
+            Time {
+                    2021,
+                    11,
+                    3,
+                    3,
+                    15,
+                    16,
+                    12,
+                    33
+                },
+            1,
+            0,
+            9.9,
+            0,
+            2,
+            {
+                '0'
+            }
+    };
+
+    int Size0 = SIGNAL_HEADER_SIZE + in.nPoints * sizeof(double); // size of uncompressed
+
+    auto* dBuf = (double*) in.data;
+    auto* flipped = new unsigned char(in.nPoints * sizeof(double));
+
+    switch (in.type>>16){
+        case 0:{
+            auto* cData = (unsigned char*)&in.data;
+            LongFlip flip{0};
+            for(int i = 0; i < in.nPoints; i++){
+                flip.asLong = (dBuf[i] - in.yMin) / in.delta;
+
+                flipped[i]                  = flip.asChar[0];
+                flipped[in.nPoints + i]     = flip.asChar[1];
+                flipped[in.nPoints * 2 + i] = flip.asChar[2];
+                flipped[in.nPoints * 3 + i] = flip.asChar[3];
+            }
+            break;
+        }
+        case 1:
+            std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
+            break;
+        case 2:
+            std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
+            break;
+        default:
+            break;
+    } //
+
+    std::memcpy(in.data, flipped, in.nPoints * sizeof(double));
+
+    CompressedRLE* rle = compressRLE(&in);
+
+    //size1 = compressed RLE size
+
+    CompressedHoff packed = compressHoffman(rle);
+
+
+    std::string inFilename = "d:/tmp/TS.SHT";
+    std::ofstream outFile;
+    outFile.open (inFilename, std::ios::out | std::ios::binary);
+    if (outFile.is_open()){
+        outFile.write(V2, sizeof(V2));
+        int signalCount = 1;
+        outFile.write((const char*)&signalCount, sizeof(int));
+
+        for(int i = 0; i < signalCount; i++){
+            outFile.write((char *)&packed.size, sizeof(int));
+            outFile.write(packed.data, packed.size);
+        }
+
+        outFile.close();
+
+        std::cout << "file written" << std::endl;
+    }else{
+        std::cout << "Unable to open file" << std::endl;
+    }
+    return;
 }
 
 int innerTest(const int n){

@@ -1,10 +1,12 @@
 import ctypes
 from pathlib import Path
 import sys
+from datetime import datetime
 
 # require python >= 3.5 for ctypes compiler match
 
 # c++ toolchain: Visual Studio 2019 (pro). Version 16. Arc: x86_amd64. CMake: bundled
+# c++ toolchain: Visual Studio 2019 (pro). Version 16. Arc: x86. CMake: bundled
 
 
 class In(ctypes.Structure):
@@ -42,16 +44,22 @@ class Ripper:
     encoding: str = 'cp1251'
 
     def __init__(self):
-        print('shtRipper v2')
+        print('shtRipper v3')
 
-        self.lib = ctypes.cdll.LoadLibrary('%s/binary/ripperForPython_%d.dll' %
-                                           (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
+
+        #self.lib = ctypes.cdll.LoadLibrary('%s/binary/ripperForPython_%d.dll' %
+        #                                   (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
+
+        self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/binary/ripperForPython.dll')
 
         self.lib.test.argtypes = [ctypes.c_int]
         self.lib.test.restype = ctypes.c_int
 
         self.lib.rip.argtypes = [ctypes.c_char_p]
         self.lib.rip.restype = In
+
+        self.lib.cram.argtypes = None
+        self.lib.cram.restype = None
 
         self.lib.freeOut.argtypes = None
         self.lib.freeOut.restype = None
@@ -117,3 +125,18 @@ class Ripper:
                 curr += header.count * 8 * 3
             res[header.name.decode(self.encoding)] = signal
         return res
+
+    def write(self, path: str, filename: str, data: dict) -> str:  # add "defaultX" option.
+
+        #dt_object = datetime.fromtimestamp(time.time())
+
+        path = Path(path)
+        if not path.is_dir():
+            err: str = 'requested path "%s" does not exist.' % filename
+            print(err)
+            return err
+
+        #add here
+        self.lib.cram()
+
+        return ''
