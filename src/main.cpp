@@ -23,8 +23,14 @@ int main(int argc, char* argv[]) {
     delay();
     std::cout << std::endl;
 
-    //std::string inFile = "d:/data/cfm/original/00040032.dat";
+    packSHT();
+
+    std::cout << "\nNormal pack." << std::endl << std::flush;
+    delay();
+
+
     std::string inFilename = "d:/data/cfm/original/sht40808.SHT";
+    //std::string inFilename = "d:/tmp/TS.SHT";
 
     std::ifstream inFile;
     inFile.open (inFilename, std::ios::in | std::ios::binary | std::ios::ate);
@@ -37,9 +43,9 @@ int main(int argc, char* argv[]) {
 
         std::cout << "the entire file content is in memory" << std::endl;
 
-        for(int i = 0; i < 1; i++){
-            std::cout << i << ' ' << parseSHT(memblock).size << std::endl;
-        }
+
+        auto readed = parseSHT(memblock);
+
 
         std::cout << "processed OK" << std::endl;
 

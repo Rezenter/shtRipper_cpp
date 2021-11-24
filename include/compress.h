@@ -31,8 +31,19 @@ typedef struct {
     Time time;
     int nPoints;
     double tMin, tMax, yMin, delta; // omitted in output
-    unsigned char data[10];
+    unsigned char data[1];
 }CombiscopeHistogram;
+
+typedef struct {
+    int type;
+    char name[128];
+    char comment[128];
+    char unit[128];
+    Time time;
+    int nPoints;
+    unsigned char* data;
+}PythonHistogram;
+
 static const int SIGNAL_HEADER_SIZE = 408;
 
 typedef struct {
