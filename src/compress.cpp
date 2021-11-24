@@ -94,12 +94,12 @@ CompressedRLE* DecompressHoffman(const CompressedHoff* compressed){
     const auto* buff = compressed->data + 511 + sizeof(int);
 
     for(int i = 0; i < uncompressedSize; i++){
-        bool bit = GetBit(buff, index);
+        bool bit = (buff[index / 8]&(1<< (index % 8))) != 0;
         index++;
         pGraph = &Graph[255];
         while(pGraph->Vertex[bit] > 255){
             pGraph = &Graph[pGraph->Vertex[bit] - 256];
-            bit = GetBit(buff, index);
+            bit = (buff[index / 8]&(1<< (index % 8))) != 0;
             index++;
         }
         RLE->data[i] = (unsigned char)pGraph->Vertex[bit];
@@ -259,39 +259,38 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
     return out;  // use currOutPos
 }
 
-CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed){
-    int sizeIn = sizeof(CombiscopeHistogram) - sizeof(unsigned char *) + uncompressed->nPoints * sizeof(long); // FIX
+CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed, const int size){
     auto* data = (unsigned char*) uncompressed;
 
-    unsigned char Counter;
+    unsigned char counter;
     int i = 0;
     int NBytes = 0;
-    while (i < sizeIn){
-        if(i != sizeIn - 1 && data[i] == data[i+1]){
-            Counter = 2;
+    while (i < size){
+        if(i != size - 1 && data[i] == data[i+1]){
+            counter = 2;
             i += 2;
-            while((i < sizeIn) &&
+            while((i < size) &&
                     (data[i] == data[i - 1]) &&
-                    (Counter < 127)){
+                    (counter < 127)){
                 i++;
-                Counter++;
+                counter++;
             }
             NBytes += 2;
         }else{
-            Counter=1;
+            counter=1;
             while (true){
                 i++;
-                if (i >= sizeIn)
+                if (i >= size)
                     break;
-                if (i < sizeIn - 1){
+                if (i < size - 1){
                     if (data[i] == data[i + 1])
                         break;
                 }
-                if (Counter == 127)
+                if (counter == 127)
                     break;
-                Counter++;
+                counter++;
             }
-            NBytes += Counter + 1;
+            NBytes += counter + 1;
         }
     }
 
@@ -299,37 +298,37 @@ CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed){
 
     i = 0;
     NBytes = 0;
-    while (i < sizeIn){
-        if(i != sizeIn - 1 && data[i] == data[i + 1]){
-            Counter = 2;
+    while (i < size){
+        if(i != size - 1 && data[i] == data[i + 1]){
+            counter = 2;
             compressed->data[NBytes + 1] = data[i];
             i += 2;
-            while((i < sizeIn) &&
+            while((i < size) &&
                     (data[i] == data[i - 1]) &&
-                    (Counter < 127)){
+                    (counter < 127)){
                 i++;
-                Counter++;
+                counter++;
             }
-            compressed->data[NBytes] = Counter;
+            compressed->data[NBytes] = counter;
             NBytes += 2;
         }else{
-            Counter = 1;
-            compressed->data[NBytes + Counter] = data[i];
+            counter = 1;
+            compressed->data[NBytes + counter] = data[i];
             while(true){
                 i++;
-                if(i >= sizeIn)
+                if(i >= size)
                     break;
-                if (i < sizeIn - 1){
+                if (i < size - 1){
                     if(data[i] == data[i + 1])
                         break;
                 }
-                if(Counter == 127)
+                if(counter == 127)
                     break;
-                Counter++;
-                compressed->data[NBytes + Counter] = data[i];
+                counter++;
+                compressed->data[NBytes + counter] = data[i];
             }
-            compressed->data[NBytes] = Counter | 128;
-            NBytes += Counter + 1;
+            compressed->data[NBytes] = counter | 128;
+            NBytes += counter + 1;
         }
     }
 
@@ -345,8 +344,8 @@ void CreateCode(const unsigned char *table, Code *code){
 
     unsigned char vertex;
     unsigned short prevVertex;
-    unsigned char Bit, Mask;
-    unsigned int Byte;
+    unsigned char bit, byteMask;
+    unsigned int byte;
 
     for(int i = 0; i < 256; i++){
         code[i].NBits = 0;
@@ -364,11 +363,11 @@ void CreateCode(const unsigned char *table, Code *code){
             }
 
             for (int j = 0; j < code[i].NBits; j++){
-                Byte = (code[i].NBits - 1 - j) / 8;
-                Bit = (code[i].NBits - 1 - j) % 8;
-                Mask =~ (1<<Bit);
-                code[i].Bits[Byte] = code[i].Bits[Byte]&Mask;
-                code[i].Bits[Byte] = code[i].Bits[Byte]|(bits[j]<<Bit);
+                byte = (code[i].NBits - 1 - j) / 8;
+                bit = (code[i].NBits - 1 - j) % 8;
+                byteMask =~ (1 << bit);
+                code[i].Bits[byte] = code[i].Bits[byte] & byteMask;
+                code[i].Bits[byte] = code[i].Bits[byte] | (bits[j] << bit);
             }
         }
     }
@@ -382,29 +381,28 @@ int CompressedSize(const CompressedRLE* uncompressed, const Code *Code){
     return (size + 8) / 8;
 }
 
-void CompressHoffman(const CompressedRLE* uncompressed, Code *Code, unsigned char *OutBuff){
-    int Index = 0;
-    unsigned char Bit, Mask;
-    unsigned int Byte;
+void CompressHoffman(const CompressedRLE* uncompressed, const Code *code, unsigned char *outBuff){
+    int index = 0;
+    unsigned char bit, mask;
+    unsigned int byte;
     for (int i = 0; i < uncompressed->size; i++){
-        for (int j = 0; j < Code[uncompressed->data[i]].NBits; j++){
-            Byte = j / 8;
-            Bit = j % 8;
-            bool b = (Code[uncompressed->data[i]].Bits[Byte]&(1<<Bit)) != 0;
+        for (int j = 0; j < code[uncompressed->data[i]].NBits; j++){
+            byte = j / 8;
+            bit = j % 8;
+            bool b = (code[uncompressed->data[i]].Bits[byte] & (1 << bit)) != 0;
 
-            //possible error here
-            Byte = Index / 8;
-            Bit = Index % 8;
-            Mask =~ (1<<Bit);
-            OutBuff[Byte] = OutBuff[Byte]&Mask;
-            OutBuff[Byte] = OutBuff[Byte]|(b<<Bit);
+            byte = index / 8;
+            bit = index % 8;
+            mask =~ (1 << bit);
+            outBuff[byte] = outBuff[byte] & mask;
+            outBuff[byte] = outBuff[byte] | (b << bit);
 
-            Index++;
+            index++;
         }
     }
 }
 
-void Sort(Knot **pKnot, int left, int right){
+void Sort(Knot **pKnot, const int left, const int right){
     int i, j;
     Knot *comp;
     Knot *value;
@@ -464,22 +462,21 @@ void CreateTable(const CompressedRLE* uncompressed,	unsigned char *Table){
 }
 
 CompressedHoff compressHoffman(const CompressedRLE* uncompressed){
-    unsigned char Table[511];
+    unsigned char table[511];
 
+    Code code[256];
+    CreateTable(uncompressed, table);
+    CreateCode(table, code);
+    int cSize = CompressedSize(uncompressed, code);
 
-    Code Code[256];
-    CreateTable(uncompressed, Table);
-    CreateCode(Table, Code);
-    int cSize = CompressedSize(uncompressed, Code);
+    auto *outBuff = new unsigned char [cSize + 511 + sizeof(int)];
+    std::memcpy(outBuff, table, 511);
+    std::memcpy(outBuff + 511, &uncompressed->size, sizeof(int));
 
-    auto *OutBuff = new unsigned char [cSize + 511 + sizeof(int)];
-    memcpy(OutBuff,Table,511);
-
-    memcpy(OutBuff + 511, &uncompressed->size, sizeof(int));
-    CompressHoffman(uncompressed, Code, OutBuff + 511 + sizeof(int));
+    CompressHoffman(uncompressed, code, outBuff + 511 + sizeof(int));
 
     return CompressedHoff{
-            (char*) OutBuff,
+            (char*) outBuff,
             (cSize + 511 + 4)
     };
 }
@@ -506,54 +503,63 @@ void packSHT(){
             8
     };
 
-    long dat[8] = {0, 1, 0, 1, 0, 1, 0, 1};
-    unsigned char* datC = (unsigned char *)&dat;
+    long dat[8] = {0, 1, 0, 2, 0, 1, 0, 1};
+
     double tMin = 0;
     double tMax = 7;
     double yMin = 0;
     double delta = 1;
 
-
-    unsigned char* buffer = new unsigned char[sizeof(CombiscopeHistogram) - 1 + raw_in.nPoints * sizeof(long)];
-    std::memcpy(buffer, &raw_in, sizeof(PythonHistogram));
-    std::memcpy(buffer + sizeof(PythonHistogram) - sizeof(unsigned char*), &tMin, sizeof(double));
-    std::memcpy(buffer + sizeof(PythonHistogram) - sizeof(unsigned char*) + sizeof(double), &tMax, sizeof(double));
-    std::memcpy(buffer + sizeof(PythonHistogram) - sizeof(unsigned char*) + sizeof(double) * 2, &yMin, sizeof(double));
-    std::memcpy(buffer + sizeof(PythonHistogram) - sizeof(unsigned char*) + sizeof(double) * 3, &delta, sizeof(double));
-    std::memcpy(buffer + sizeof(PythonHistogram) - sizeof(unsigned char*) + sizeof(double) * 4, datC, sizeof(long) * raw_in.nPoints);
-    CombiscopeHistogram* in = (CombiscopeHistogram *) buffer;
-
-    auto lBuf = (long*) in->data;
-    auto flipped = new unsigned char[in->nPoints * sizeof(long)];
-
-    LongFlip flip{0};
-    switch (in->type>>16){
-        case 0:{
-            for(int i = 0; i < in->nPoints; i++){
-                flip.asLong = lBuf[i];
-
-                flipped[i]                  = flip.asChar[0];
-                flipped[in->nPoints + i]     = flip.asChar[1];
-                flipped[in->nPoints * 2 + i] = flip.asChar[2];
-                flipped[in->nPoints * 3 + i] = flip.asChar[3];
-            }
+    int flipSize = raw_in.nPoints;
+    int total_size = sizeof(CombiscopeHistogram) - sizeof(unsigned char *);
+    switch (raw_in.type>>16){
+        case 0:
+            total_size += raw_in.nPoints * sizeof(long);
             break;
-        }
         case 1:
-            std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
+            flipSize *= 4; // 2 from long->double; 2 from x and y
+            total_size += raw_in.nPoints * sizeof(double) * 2;
             break;
         case 2:
+            flipSize *= 6; // 2 from long->double; 3 from x, y and z
+            total_size += raw_in.nPoints * sizeof(double) * 3;
             std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
             break;
         default:
+            std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
             break;
     }
 
-    std::memcpy(in->data, flipped, in->nPoints * sizeof(long));
+    auto* buffer = new unsigned char[total_size];
+    auto* buffPosition = buffer;
+    std::memcpy(buffPosition, &raw_in, sizeof(PythonHistogram));
+    buffPosition += sizeof(PythonHistogram) - sizeof(unsigned char *);
+    std::memcpy(buffPosition, &tMin, sizeof(double));
+    buffPosition += sizeof(double);
+    std::memcpy(buffPosition, &tMax, sizeof(double));
+    buffPosition += sizeof(double);
+    std::memcpy(buffPosition, &yMin, sizeof(double));
+    buffPosition += sizeof(double);
+    std::memcpy(buffPosition, &delta, sizeof(double));
+    buffPosition += sizeof(double);
 
-    CompressedRLE* rle = compressRLE(in);
+    auto* in = (CombiscopeHistogram *) buffer;
+    auto lBuf = (long*)&dat;
+
+    LongFlip flip{0};
+    for(int i = 0; i < flipSize; i++){
+        flip.asLong = lBuf[i];
+        std::memcpy(buffPosition + i, &flip.asChar[0], sizeof(char));
+        std::memcpy(buffPosition + i + in->nPoints, &flip.asChar[1], sizeof(char));
+        std::memcpy(buffPosition + i + in->nPoints * 2, &flip.asChar[2], sizeof(char));
+        std::memcpy(buffPosition + i + in->nPoints * 3, &flip.asChar[3], sizeof(char));
+    }
+
+    CompressedRLE* rle = compressRLE(in, total_size);
+    delete[] buffer;
 
     CompressedHoff packed = compressHoffman(rle);
+    delete rle;
 
     std::string inFilename = "d:/tmp/TS.SHT";
     std::ofstream outFile;
@@ -565,6 +571,7 @@ void packSHT(){
         for(int i = 0; i < signalCount; i++){
             outFile.write((char *)&packed.size, sizeof(int));
             outFile.write(packed.data, packed.size);
+            delete[] packed.data;
         }
 
         outFile.close();
@@ -575,24 +582,6 @@ void packSHT(){
     }
     std::cout << "CPP pack OK" << std::endl;
 
-    std::ifstream inFile;
-    inFile.open (inFilename, std::ios::in | std::ios::binary | std::ios::ate);
-    if (inFile.is_open()){
-        std::streampos size = inFile.tellg();
-        char * memblock = new char [size];
-        inFile.seekg (0, std::ios::beg);
-        inFile.read (memblock, size);
-
-        inFile.close();
-
-        auto debug_file = parseSHT(memblock);
-        std::cout << "file read" << std::endl;
-    }else{
-        std::cout << "Unable to open file" << std::endl;
-    }
-
-
-    //delete[] flipped;
     return;
 }
 

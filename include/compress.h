@@ -98,17 +98,13 @@ static Out out = {
 };
 static unsigned char* currentOutPos = nullptr;
 
-static bool GetBit(const char* Bits, unsigned int index){
-    return (Bits[index / 8]&(1<< (index % 8))) != 0;
-}
-
 Out parseSHT(const char* in);
 CompressedRLE* DecompressHoffman(const CompressedHoff* compressed);
 CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
 void appendOut(const CombiscopeHistogram*);
 
 void packSHT();
-CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed);
+CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed, const int size);
 CompressedHoff compressHoffman(const CompressedRLE* uncompressed);
 
 int innerTest(int n);

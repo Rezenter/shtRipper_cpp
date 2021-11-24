@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
     std::cout << "\nNormal pack." << std::endl << std::flush;
     delay();
 
+    return 0;
 
     std::string inFilename = "d:/data/cfm/original/sht40808.SHT";
     //std::string inFilename = "d:/tmp/TS.SHT";
