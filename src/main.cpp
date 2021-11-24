@@ -23,7 +23,33 @@ int main(int argc, char* argv[]) {
     delay();
     std::cout << std::endl;
 
-    packSHT();
+
+    int signalCount = 1;
+    CombiscopeHistogram raw_in {
+            1<<16,
+            "Test signal name",
+            "This is comment",
+            "parrot",
+            Time {
+                    2021,
+                    11,
+                    3,
+                    3,
+                    15,
+                    16,
+                    12,
+                    33
+            },
+            8,
+            0,
+            7,
+            0,
+            2
+    };
+
+    double dat[16] = {0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 0, 1, 2, 3, 4, 0, 1, 2};
+
+    packSHT(signalCount, (const char*)&raw_in, (const char*)&dat);
 
     std::cout << "\nNormal pack." << std::endl << std::flush;
     delay();

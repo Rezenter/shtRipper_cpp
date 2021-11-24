@@ -481,85 +481,8 @@ CompressedHoff compressHoffman(const CompressedRLE* uncompressed){
     };
 }
 
-void packSHT(){
+void packSHT(const int signalCount, const char* headers, const char* data){
     std::cout << "pack" << std::endl;
-    int signalCount = 1;
-
-    PythonHistogram raw_in {
-            2,
-            "Test signal name",
-            "This is comment",
-            "parrot",
-            Time {
-                    2021,
-                    11,
-                    3,
-                    3,
-                    15,
-                    16,
-                    12,
-                    33
-            },
-            8
-    };
-
-    long dat[8] = {0, 1, 0, 2, 0, 1, 0, 1};
-
-    double tMin = 0;
-    double tMax = 7;
-    double yMin = 0;
-    double delta = 1;
-
-    int flipSize = raw_in.nPoints;
-    int total_size = sizeof(CombiscopeHistogram) - sizeof(unsigned char *);
-    switch (raw_in.type>>16){
-        case 0:
-            total_size += raw_in.nPoints * sizeof(long);
-            break;
-        case 1:
-            flipSize *= 4; // 2 from long->double; 2 from x and y
-            total_size += raw_in.nPoints * sizeof(double) * 2;
-            break;
-        case 2:
-            flipSize *= 6; // 2 from long->double; 3 from x, y and z
-            total_size += raw_in.nPoints * sizeof(double) * 3;
-            std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
-            break;
-        default:
-            std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
-            break;
-    }
-
-    auto* buffer = new unsigned char[total_size];
-    auto* buffPosition = buffer;
-    std::memcpy(buffPosition, &raw_in, sizeof(PythonHistogram));
-    buffPosition += sizeof(PythonHistogram) - sizeof(unsigned char *);
-    std::memcpy(buffPosition, &tMin, sizeof(double));
-    buffPosition += sizeof(double);
-    std::memcpy(buffPosition, &tMax, sizeof(double));
-    buffPosition += sizeof(double);
-    std::memcpy(buffPosition, &yMin, sizeof(double));
-    buffPosition += sizeof(double);
-    std::memcpy(buffPosition, &delta, sizeof(double));
-    buffPosition += sizeof(double);
-
-    auto* in = (CombiscopeHistogram *) buffer;
-    auto lBuf = (long*)&dat;
-
-    LongFlip flip{0};
-    for(int i = 0; i < flipSize; i++){
-        flip.asLong = lBuf[i];
-        std::memcpy(buffPosition + i, &flip.asChar[0], sizeof(char));
-        std::memcpy(buffPosition + i + in->nPoints, &flip.asChar[1], sizeof(char));
-        std::memcpy(buffPosition + i + in->nPoints * 2, &flip.asChar[2], sizeof(char));
-        std::memcpy(buffPosition + i + in->nPoints * 3, &flip.asChar[3], sizeof(char));
-    }
-
-    CompressedRLE* rle = compressRLE(in, total_size);
-    delete[] buffer;
-
-    CompressedHoff packed = compressHoffman(rle);
-    delete rle;
 
     std::string inFilename = "d:/tmp/TS.SHT";
     std::ofstream outFile;
@@ -568,7 +491,50 @@ void packSHT(){
         outFile.write(V2, sizeof(V2));
         outFile.write((const char*)&signalCount, sizeof(int));
 
-        for(int i = 0; i < signalCount; i++){
+        auto* currData = (long*)data;
+        for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
+            std::cout << "packing signal #" << signalIndex + 1 << std::endl;
+            auto* raw_in = (CombiscopeHistogram *) (headers + sizeof(CombiscopeHistogram) * signalIndex);
+
+            int flipSize = raw_in->nPoints;
+            switch (raw_in->type>>16){
+                case 0:
+                    break;
+                case 1:
+                    std::cout << "HERE" << std::endl;
+                    flipSize *= 4; // 2 from long->double; 2 from x and y
+                    break;
+                case 2:
+                    flipSize *= 6; // 2 from long->double; 3 from x, y and z
+                    std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
+                    break;
+                default:
+                    std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
+                    break;
+            }
+            int total_size = sizeof(CombiscopeHistogram) - sizeof(unsigned char *) + flipSize * sizeof(long);
+
+            auto* buffer = new unsigned char[total_size];
+            auto* buffPosition = buffer;
+            std::memcpy(buffPosition, raw_in, sizeof(CombiscopeHistogram));
+            buffPosition += sizeof(CombiscopeHistogram) - sizeof(unsigned char *);
+
+            LongFlip flip{0};
+            for(int i = 0; i < flipSize; i++){
+                flip.asLong = currData[i];
+                std::memcpy(buffPosition + i, &flip.asChar[0], sizeof(char));
+                std::memcpy(buffPosition + i + raw_in->nPoints, &flip.asChar[1], sizeof(char));
+                std::memcpy(buffPosition + i + raw_in->nPoints * 2, &flip.asChar[2], sizeof(char));
+                std::memcpy(buffPosition + i + raw_in->nPoints * 3, &flip.asChar[3], sizeof(char));
+            }
+            currData += flipSize;
+
+            CompressedRLE* rle = compressRLE((CombiscopeHistogram*) buffer, total_size);
+            delete[] buffer;
+
+            CompressedHoff packed = compressHoffman(rle);
+            delete rle;
+
             outFile.write((char *)&packed.size, sizeof(int));
             outFile.write(packed.data, packed.size);
             delete[] packed.data;
@@ -581,8 +547,6 @@ void packSHT(){
         std::cout << "Unable to open file" << std::endl;
     }
     std::cout << "CPP pack OK" << std::endl;
-
-    return;
 }
 
 int innerTest(const int n){

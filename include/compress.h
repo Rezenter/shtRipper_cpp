@@ -34,16 +34,6 @@ typedef struct {
     unsigned char data[1];
 }CombiscopeHistogram;
 
-typedef struct {
-    int type;
-    char name[128];
-    char comment[128];
-    char unit[128];
-    Time time;
-    int nPoints;
-    unsigned char* data;
-}PythonHistogram;
-
 static const int SIGNAL_HEADER_SIZE = 408;
 
 typedef struct {
@@ -103,7 +93,7 @@ CompressedRLE* DecompressHoffman(const CompressedHoff* compressed);
 CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
 void appendOut(const CombiscopeHistogram*);
 
-void packSHT();
+void packSHT(const int signalCount, const char* headers, const char* data);
 CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed, const int size);
 CompressedHoff compressHoffman(const CompressedRLE* uncompressed);
 
