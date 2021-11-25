@@ -24,10 +24,11 @@ int main(int argc, char* argv[]) {
     std::cout << std::endl;
 
 
-    int signalCount = 1;
-    CombiscopeHistogram raw_in {
+    int signalCount = 2;
+
+    CombiscopeHistogram raw_in[2] = {{
             1<<16,
-            "Test signal name",
+            "Test XY signal 1",
             "This is comment",
             "parrot",
             Time {
@@ -40,14 +41,35 @@ int main(int argc, char* argv[]) {
                     12,
                     33
             },
-            8,
-            0,
-            7,
-            0,
-            2
-    };
+            2,
+            1,
+            2,
+            2,
+            5
+    },
+     {
+             0<<16,
+             "Test XY signal 2",
+             "This is comment",
+             "parrot",
+             Time {
+                     2021,
+                     11,
+                     3,
+                     3,
+                     15,
+                     16,
+                     12,
+                     33
+             },
+             2,
+             1,
+             2,
+             2,
+             5
+     }};
 
-    double dat[16] = {0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 0, 1, 2, 3, 4, 0, 1, 2};
+    double dat[8] = {1.0, 1.5, 7, 2.5, 0, 0, 1, 1};
 
     packSHT(signalCount, (const char*)&raw_in, (const char*)&dat);
 

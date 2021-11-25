@@ -501,7 +501,6 @@ void packSHT(const int signalCount, const char* headers, const char* data){
                 case 0:
                     break;
                 case 1:
-                    std::cout << "HERE" << std::endl;
                     flipSize *= 4; // 2 from long->double; 2 from x and y
                     break;
                 case 2:
@@ -512,20 +511,21 @@ void packSHT(const int signalCount, const char* headers, const char* data){
                     std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
                     break;
             }
+
             int total_size = sizeof(CombiscopeHistogram) - sizeof(unsigned char *) + flipSize * sizeof(long);
 
             auto* buffer = new unsigned char[total_size];
-            auto* buffPosition = buffer;
-            std::memcpy(buffPosition, raw_in, sizeof(CombiscopeHistogram));
-            buffPosition += sizeof(CombiscopeHistogram) - sizeof(unsigned char *);
+            std::memcpy(buffer, raw_in, sizeof(CombiscopeHistogram) - sizeof(unsigned char *));
+            auto* buffPosition = buffer + sizeof(CombiscopeHistogram) - sizeof(unsigned char *);
 
             LongFlip flip{0};
+
             for(int i = 0; i < flipSize; i++){
                 flip.asLong = currData[i];
                 std::memcpy(buffPosition + i, &flip.asChar[0], sizeof(char));
-                std::memcpy(buffPosition + i + raw_in->nPoints, &flip.asChar[1], sizeof(char));
-                std::memcpy(buffPosition + i + raw_in->nPoints * 2, &flip.asChar[2], sizeof(char));
-                std::memcpy(buffPosition + i + raw_in->nPoints * 3, &flip.asChar[3], sizeof(char));
+                std::memcpy(buffPosition + i + flipSize, &flip.asChar[1], sizeof(char));
+                std::memcpy(buffPosition + i + flipSize * 2, &flip.asChar[2], sizeof(char));
+                std::memcpy(buffPosition + i + flipSize * 3, &flip.asChar[3], sizeof(char));
             }
             currData += flipSize;
 
