@@ -242,7 +242,7 @@ Out parseSHT(const char* in) { // adapted version of RestoreHist(..., int versio
     if(!tasks.empty()){
         size_t threadCount = std::thread::hardware_concurrency();
 
-        out.point = new unsigned char[totalInSize * 15];
+        out.point = new char[totalInSize * 15];
         currentOutPos = out.point;
         out.size = tasks.size();
 
@@ -481,72 +481,85 @@ CompressedHoff compressHoffman(const CompressedRLE* uncompressed){
     };
 }
 
-void packSHT(const int signalCount, const char* headers, const char* data){
+Out packSHT(const int signalCount, const char* headers, const char* data){
     std::cout << "pack" << std::endl;
+    innerFreeOut();
 
-    std::string inFilename = "d:/tmp/TS.SHT";
-    std::ofstream outFile;
-    outFile.open (inFilename, std::ios::out | std::ios::binary);
-    if (outFile.is_open()){
-        outFile.write(V2, sizeof(V2));
-        outFile.write((const char*)&signalCount, sizeof(int));
+    auto* currData = (long*)data;
+    auto outQueue = new Out[signalCount];
+    int totalSize = sizeof(V2) + sizeof(int);
+    for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
+        std::cout << "packing signal #" << signalIndex + 1 << std::endl;
+        auto* raw_in = (CombiscopeHistogram *) (headers + sizeof(CombiscopeHistogram) * signalIndex);
 
-        auto* currData = (long*)data;
-        for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
-            std::cout << "packing signal #" << signalIndex + 1 << std::endl;
-            auto* raw_in = (CombiscopeHistogram *) (headers + sizeof(CombiscopeHistogram) * signalIndex);
+        int flipSize = raw_in->nPoints;
+        switch (raw_in->type>>16){
+            case 0:
+                break;
+            case 1:
+                flipSize *= 4; // 2 from long->double; 2 from x and y
+                break;
+            case 2:
+                flipSize *= 6; // 2 from long->double; 3 from x, y and z
+                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
 
-            int flipSize = raw_in->nPoints;
-            switch (raw_in->type>>16){
-                case 0:
-                    break;
-                case 1:
-                    flipSize *= 4; // 2 from long->double; 2 from x and y
-                    break;
-                case 2:
-                    flipSize *= 6; // 2 from long->double; 3 from x, y and z
-                    std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
-                    break;
-                default:
-                    std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
-                    break;
-            }
+                out.size = -1;
+                return out;
+            default:
+                std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
 
-            int total_size = sizeof(CombiscopeHistogram) - sizeof(unsigned char *) + flipSize * sizeof(long);
-
-            auto* buffer = new unsigned char[total_size];
-            std::memcpy(buffer, raw_in, sizeof(CombiscopeHistogram) - sizeof(unsigned char *));
-            auto* buffPosition = buffer + sizeof(CombiscopeHistogram) - sizeof(unsigned char *);
-
-            LongFlip flip{0};
-
-            for(int i = 0; i < flipSize; i++){
-                flip.asLong = currData[i];
-                std::memcpy(buffPosition + i, &flip.asChar[0], sizeof(char));
-                std::memcpy(buffPosition + i + flipSize, &flip.asChar[1], sizeof(char));
-                std::memcpy(buffPosition + i + flipSize * 2, &flip.asChar[2], sizeof(char));
-                std::memcpy(buffPosition + i + flipSize * 3, &flip.asChar[3], sizeof(char));
-            }
-            currData += flipSize;
-
-            CompressedRLE* rle = compressRLE((CombiscopeHistogram*) buffer, total_size);
-            delete[] buffer;
-
-            CompressedHoff packed = compressHoffman(rle);
-            delete rle;
-
-            outFile.write((char *)&packed.size, sizeof(int));
-            outFile.write(packed.data, packed.size);
-            delete[] packed.data;
+                out.size = -2;
+                return out;
         }
 
-        outFile.close();
+        int signalSize = sizeof(CombiscopeHistogram) - sizeof(unsigned char *) + flipSize * sizeof(long);
 
-        std::cout << "file written" << std::endl;
-    }else{
-        std::cout << "Unable to open file" << std::endl;
+        auto* buffer = new unsigned char[signalSize];
+        std::memcpy(buffer, raw_in, sizeof(CombiscopeHistogram) - sizeof(unsigned char *));
+        auto* buffPosition = buffer + sizeof(CombiscopeHistogram) - sizeof(unsigned char *);
+
+        LongFlip flip{0};
+
+        for(int i = 0; i < flipSize; i++){
+            flip.asLong = currData[i];
+            std::memcpy(buffPosition + i, &flip.asChar[0], sizeof(char));
+            std::memcpy(buffPosition + i + flipSize, &flip.asChar[1], sizeof(char));
+            std::memcpy(buffPosition + i + flipSize * 2, &flip.asChar[2], sizeof(char));
+            std::memcpy(buffPosition + i + flipSize * 3, &flip.asChar[3], sizeof(char));
+        }
+        currData += flipSize;
+
+        CompressedRLE* rle = compressRLE((CombiscopeHistogram*) buffer, signalSize);
+        delete[] buffer;
+
+        CompressedHoff packed = compressHoffman(rle);
+        delete rle;
+
+        totalSize += packed.size + sizeof(int);
+        outQueue[signalIndex] = Out{
+                packed.size,
+                const_cast<char *>(packed.data)
+        };
     }
     std::cout << "CPP pack OK" << std::endl;
+
+    out.point = new char[totalSize];
+    std::memcpy(out.point, V2, sizeof(V2));
+    out.size += sizeof(V2);
+    std::memcpy(out.point + out.size, &signalCount, sizeof(int));
+    out.size += sizeof(int);
+    for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
+        std::memcpy(out.point + out.size, &outQueue[signalIndex].size, sizeof(int));
+        out.size += sizeof(int);
+        std::memcpy(out.point + out.size, outQueue[signalIndex].point, outQueue[signalIndex].size);
+        out.size += outQueue[signalIndex].size;
+
+        delete[] outQueue[signalIndex].point;
+    }
+    delete[] outQueue;
+
+    std::cout << "CPP out OK" << std::endl;
+    return out;
 }
 
 int innerTest(const int n){
@@ -554,7 +567,7 @@ int innerTest(const int n){
 }
 
 void innerFreeOut(){
-    delete out.point;
+    delete[] out.point;
     out.size = 0;
     currentOutPos = nullptr;
 }

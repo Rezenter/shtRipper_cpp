@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
             5
     },
      {
-             0<<16,
+             1<<16,
              "Test XY signal 2",
              "This is comment",
              "parrot",
@@ -69,9 +69,20 @@ int main(int argc, char* argv[]) {
              5
      }};
 
-    double dat[8] = {1.0, 1.5, 7, 2.5, 0, 0, 1, 1};
+    double dat[8] = {0, 1, 2, 3, 0, 3, 2, -3};
 
-    packSHT(signalCount, (const char*)&raw_in, (const char*)&dat);
+    std::string outFilename = "d:/tmp/TS.SHT";
+    std::ofstream outFile;
+    outFile.open (outFilename, std::ios::out | std::ios::binary);
+    if (outFile.is_open()){
+        Out out = packSHT(signalCount, (const char*)&raw_in, (const char*)&dat);
+        outFile.write(out.point, out.size);
+        outFile.close();
+        innerFreeOut();
+    }else{
+        std::cout << "Unable to open file" << std::endl;
+    }
+
 
     std::cout << "\nNormal pack." << std::endl << std::flush;
     delay();

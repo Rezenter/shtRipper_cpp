@@ -57,7 +57,7 @@ typedef struct {
 } CompressedHoff;
 typedef struct {
     int size;
-    unsigned char* point;
+    char* point;
 } Out;
 class CompressedRLE{
 public:
@@ -77,7 +77,6 @@ union LongFlip{
     unsigned char asChar[4];
 };
 
-
 static std::vector<std::thread> workers;
 static std::vector<CompressedHoff> tasks;
 static std::mutex lockIn;
@@ -86,14 +85,14 @@ static Out out = {
         0,
         nullptr
 };
-static unsigned char* currentOutPos = nullptr;
+static char* currentOutPos = nullptr;
 
 Out parseSHT(const char* in);
 CompressedRLE* DecompressHoffman(const CompressedHoff* compressed);
 CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
 void appendOut(const CombiscopeHistogram*);
 
-void packSHT(const int signalCount, const char* headers, const char* data);
+Out packSHT(const int signalCount, const char* headers, const char* data);
 CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed, const int size);
 CompressedHoff compressHoffman(const CompressedRLE* uncompressed);
 
