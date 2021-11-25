@@ -9,14 +9,14 @@ from datetime import datetime
 # c++ toolchain: Visual Studio 2019 (pro). Version 16. Arc: x86. CMake: bundled
 
 
-class In(ctypes.Structure):
+class _Array(ctypes.Structure):
     _fields_ = [
         ('size', ctypes.c_int),
         ('point', ctypes.POINTER(ctypes.c_char))
     ]
 
 
-class Time(ctypes.Structure):
+class _Time(ctypes.Structure):
     _fields_ = [
         ('year', ctypes.c_ushort),
         ('month', ctypes.c_ushort),
@@ -29,19 +29,110 @@ class Time(ctypes.Structure):
     ]
 
 
-class Signal(ctypes.Structure):
+class _Signal(ctypes.Structure):
     _fields_ = [
         ('type', ctypes.c_int),
         ('name', ctypes.c_char * 128),
         ('comment', ctypes.c_char * 128),
         ('unit', ctypes.c_char * 128),
-        ('time', Time),
+        ('time', _Time),
         ('count', ctypes.c_int)
     ]
 
+class _Header(ctypes.Structure):
+    _fields_ = [
+        ('type', ctypes.c_int),
+        ('name', ctypes.c_char * 128),
+        ('comment', ctypes.c_char * 128),
+        ('unit', ctypes.c_char * 128),
+        ('time', _Time),
+        ('count', ctypes.c_int),
+        ('tMin', ctypes.c_double),
+        ('tMax', ctypes.c_double),
+        ('yMin', ctypes.c_double),
+        ('delta', ctypes.c_double),
+        ('void', ctypes.c_char_p)
+    ]
+
+
+encoding: str = 'cp1251'
+
 
 class Ripper:
-    encoding: str = 'cp1251'
+    class _Unpacked:
+        def __init__(self, data: dict[str, dict]):
+            self.count = 0
+            self.error = ''
+
+            py_headers = []
+            py_data = []
+            data_size = 0
+            for signal_name in data.keys():
+                signal = data[signal_name]
+                if type(signal) is not dict:
+                    self.error = 'Error: data contains bad signal "%s"' % signal
+                    return
+                header = _Header()
+                header.name = signal_name[:128].encode(encoding)
+                if 'comment' in signal:
+                    header.comment = signal['comment'][:128].encode(encoding)
+                else:
+                    header.comment = ''.encode(encoding)
+                if 'unit' in signal:
+                    header.unit = signal['unit'][:128].encode(encoding)
+                else:
+                    header.unit = ''.encode(encoding)
+
+                '''if 'timestamp' in signal:
+                    header.unit = signal['unit'].encode(encoding)
+                else:
+                    header.unit = ''.encode(encoding)
+                    #dt_object = datetime.fromtimestamp(time.time())
+                    '''
+                if 'x' in signal and 'y' in signal:
+                    header.type = 1 << 16
+                    if len(signal['x']) != len(signal['y']):
+                        self.error = 'Error: X and Y arrays have different length: %d vs %d' % \
+                                     (len(signal['x']), len(signal['y']))
+                        return
+                    header.count = len(signal['x'])
+                    serialised_data = (ctypes.c_char * (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2))()
+                    for i in range(len(signal['x'])):
+                        ctypes.memmove(ctypes.byref(serialised_data, i * 2 * ctypes.sizeof(ctypes.c_double)),
+                                       ctypes.pointer(ctypes.c_double(signal['x'][i])),
+                                       ctypes.sizeof(ctypes.c_double))
+                        ctypes.memmove(ctypes.byref(serialised_data, (i * 2 + 1) * ctypes.sizeof(ctypes.c_double)),
+                                       ctypes.pointer(ctypes.c_double(signal['y'][i])),
+                                       ctypes.sizeof(ctypes.c_double))
+                    py_data.append({
+                        'size': (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2),
+                        'data': serialised_data
+                    })
+                    data_size += (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2)
+                elif 'tMin' in signal and 'tMax' in signal and 'yMin' in signal and 'yAmp' in signal:
+                    header.type = 0 << 16
+                    self.error = 'Error: only XY signal is supported now.'
+                    return
+                else:
+                    self.error = 'Error: bad signal format.'
+                    return
+
+                py_headers.append(header)
+                self.count += 1
+
+            headers_size = (ctypes.sizeof(_Header)) * self.count
+            _headers = (ctypes.c_char * headers_size)()
+            for header_ind in range(len(py_headers)):
+                ctypes.memmove(ctypes.byref(_headers, ctypes.sizeof(_Header) * header_ind),
+                               ctypes.pointer(py_headers[header_ind]), ctypes.sizeof(_Header))
+            self.headers = ctypes.cast(ctypes.pointer(_headers), ctypes.c_char_p)
+
+            _data = (ctypes.c_char * data_size)()
+            offset: int = 0
+            for entry in py_data:
+                ctypes.memmove(ctypes.byref(_data, offset), ctypes.pointer(entry['data']), entry['size'])
+                offset += entry['size']
+            self.data = ctypes.cast(ctypes.pointer(_data), ctypes.c_char_p)
 
     def __init__(self):
         print('shtRipper v3')
@@ -56,10 +147,10 @@ class Ripper:
         self.lib.test.restype = ctypes.c_int
 
         self.lib.rip.argtypes = [ctypes.c_char_p]
-        self.lib.rip.restype = In
+        self.lib.rip.restype = _Array
 
-        self.lib.cram.argtypes = None
-        self.lib.cram.restype = None
+        self.lib.cram.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p]
+        self.lib.cram.restype = _Array
 
         self.lib.freeOut.argtypes = None
         self.lib.freeOut.restype = None
@@ -93,7 +184,7 @@ class Ripper:
         curr: int = 0
         print('extracted %d signals.' % resp.size)
         for signal_count in range(resp.size):
-            header = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(Signal)).contents
+            header = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(_Signal)).contents
             curr += 408
             #print('signal name: ', header.name.decode(encoding))
             #print('comment: ', header.comment.decode(encoding))
@@ -102,8 +193,8 @@ class Ripper:
             #print('time: ', '%d.%d.%d %d:%d:%d.%d' % (t.year, t.month, t.day, t.hour, t.min, t.sec, t.msec))
             #print(header.count)
             signal = {
-                'comment': header.comment.decode(self.encoding),
-                'unit': header.unit.decode(self.encoding),
+                'comment': header.comment.decode(encoding),
+                'unit': header.unit.decode(encoding),
                 'time': '%d.%d.%d %d:%d:%d.%d' % (t.year, t.month, t.day, t.hour, t.min, t.sec, t.msec)
             }
             if header.type >> 16 == 0:
@@ -123,20 +214,30 @@ class Ripper:
             elif header.type >> 16 == 2:
                 print('!!! this file type is not supported yet. Please, give it to Nikita.')
                 curr += header.count * 8 * 3
-            res[header.name.decode(self.encoding)] = signal
+            res[header.name.decode(encoding)] = signal
         return res
 
-    def write(self, path: str, filename: str, data: dict) -> str:  # add "defaultX" option.
-
-        #dt_object = datetime.fromtimestamp(time.time())
-
-        path = Path(path)
-        if not path.is_dir():
+    def write(self, path: str, filename: str, data: dict) -> str:
+        filepath = Path(path)
+        if not filepath.is_dir():
             err: str = 'requested path "%s" does not exist.' % filename
             print(err)
             return err
 
-        #add here
-        self.lib.cram()
+        prepared_data = self._Unpacked(data)
+        if prepared_data.error != '':
+            print(prepared_data.error)
+            return prepared_data.error
+
+        print('data prepared')
+
+        resp = self.lib.cram(ctypes.c_int(prepared_data.count), prepared_data.headers, prepared_data.data)
+        if resp.size < 0:
+            return 'dll error %d' % resp.size
+
+        with open('%s/%s' % (filepath, filename), 'wb') as file:
+            buff = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size))
+            file.write(bytearray(buff.contents))
+        self.lib.freeOut() #crash is a signal of access violation
 
         return ''

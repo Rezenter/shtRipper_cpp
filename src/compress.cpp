@@ -482,6 +482,8 @@ CompressedHoff compressHoffman(const CompressedRLE* uncompressed){
 }
 
 Out packSHT(const int signalCount, const char* headers, const char* data){
+    std::cout << signalCount << std::endl;
+
     std::cout << "pack" << std::endl;
     innerFreeOut();
 
@@ -491,7 +493,11 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
     for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
         std::cout << "packing signal #" << signalIndex + 1 << std::endl;
         auto* raw_in = (CombiscopeHistogram *) (headers + sizeof(CombiscopeHistogram) * signalIndex);
-
+        std::cout << raw_in->name << std::endl;
+        std::cout << raw_in->tMin << std::endl;
+        std::cout << raw_in->tMin << std::endl;
+        std::cout << raw_in->yMin << std::endl;
+        std::cout << raw_in->delta << std::endl;
         int flipSize = raw_in->nPoints;
         switch (raw_in->type>>16){
             case 0:
