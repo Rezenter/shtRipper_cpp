@@ -16,6 +16,7 @@
 Для упаковки данных в формат .sht:
 
     import shtRipper
+    import time  # not required
 
     to_pack = {
         'central Te': {
@@ -33,7 +34,7 @@
         }
     }
     
-    packed = ripper.write(path='D:/tmp/', filename='example.SHT', data=to_pack)
+    packed = shtRipper.ripper.write(path='D:/tmp/', filename='example.SHT', data=to_pack)
     if len(packed) != 0:
         print('packed error = "%s"' % packed)
 
