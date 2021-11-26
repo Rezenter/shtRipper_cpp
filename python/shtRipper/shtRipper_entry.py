@@ -240,3 +240,16 @@ class Ripper:
             buff = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size))
             file.write(bytearray(buff.contents))
         return ''
+
+    def pack(self, data: dict) -> bytearray:
+        prepared_data = self._Unpacked(data)
+        if prepared_data.error != '':
+            print(prepared_data.error)
+            return bytearray()
+
+        resp = self.lib.cram(ctypes.c_int(prepared_data.count), prepared_data.headers, prepared_data.data)
+        if resp.size < 0:
+            return bytearray()
+
+        buff = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size))
+        return bytearray(buff.contents)
