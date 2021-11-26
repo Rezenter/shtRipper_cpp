@@ -142,10 +142,9 @@ class Ripper:
 
     def __init__(self):
         print('shtRipper v3')
-        self.lib = ctypes.cdll.LoadLibrary('%s/binary/ripperForPython_%d.dll' %
+        self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
                                            (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
-
-        #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/binary/ripperForPython_64.dll')
+        #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython_64.dll')
 
         self.lib.test.argtypes = [ctypes.c_int]
         self.lib.test.restype = ctypes.c_int

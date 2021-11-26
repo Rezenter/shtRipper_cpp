@@ -20,10 +20,10 @@ add_library(ripperForPython MODULE src/pythonWrapper.cpp version.h src/compress.
 
 install(TARGETS ripperForPython
         CONFIGURATIONS Debug
-        LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/python/binary/)
+        LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/python/shtRipper/binary/)
 install(TARGETS ripperForPython
         CONFIGURATIONS Release
-        LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/python/binary/)
+        LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/python/shtRipper/binary/)
 
 ADD_CUSTOM_TARGET(
         auto_increment_version

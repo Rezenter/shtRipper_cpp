@@ -11,3 +11,30 @@
     print(res.keys())
 
 ---   
+
+
+Для упаковки данных в формат .sht:
+
+    import shtRipper
+
+    to_pack = {
+        'central Te': {
+            'comment': 'Температура в центре',
+            'unit': 'T_e(eV)',
+            'timestamp': time.time(),  # not required
+            'x': [0.0, 1.2, 1.9],
+            'y': [0, 1, 3.16]
+        },
+        'signal 2': {
+            'comment': 'Температура в центре',
+            'unit': 'T_e(eV)',
+            'x': [0, 1],
+            'y': [0, 16]
+        }
+    }
+    
+    packed = ripper.write(path='D:/tmp/', filename='example.SHT', data=to_pack)
+    if len(packed) != 0:
+        print('packed error = "%s"' % packed)
+
+---   
