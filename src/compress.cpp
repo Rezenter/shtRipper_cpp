@@ -482,23 +482,15 @@ CompressedHoff compressHoffman(const CompressedRLE* uncompressed){
 }
 
 Out packSHT(const int signalCount, const char* headers, const char* data){
-    std::cout << signalCount << std::endl;
-
-    std::cout << "pack" << std::endl;
     innerFreeOut();
 
     auto* currData = (long*)data;
     auto outQueue = new Out[signalCount];
     int totalSize = sizeof(V2) + sizeof(int);
     for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
-        std::cout << "packing signal #" << signalIndex + 1 << std::endl;
         auto* raw_in = (CombiscopeHistogram *) (headers + sizeof(CombiscopeHistogram) * signalIndex);
-        std::cout << raw_in->name << std::endl;
-        std::cout << raw_in->tMin << std::endl;
-        std::cout << raw_in->tMin << std::endl;
-        std::cout << raw_in->yMin << std::endl;
-        std::cout << raw_in->delta << std::endl;
         int flipSize = raw_in->nPoints;
+
         switch (raw_in->type>>16){
             case 0:
                 break;
@@ -524,9 +516,10 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
         std::memcpy(buffer, raw_in, sizeof(CombiscopeHistogram) - sizeof(unsigned char *));
         auto* buffPosition = buffer + sizeof(CombiscopeHistogram) - sizeof(unsigned char *);
 
+
         LongFlip flip{0};
 
-        for(int i = 0; i < flipSize; i++){
+        for (int i = 0; i < flipSize; i++) {
             flip.asLong = currData[i];
             std::memcpy(buffPosition + i, &flip.asChar[0], sizeof(char));
             std::memcpy(buffPosition + i + flipSize, &flip.asChar[1], sizeof(char));
@@ -535,7 +528,7 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
         }
         currData += flipSize;
 
-        CompressedRLE* rle = compressRLE((CombiscopeHistogram*) buffer, signalSize);
+        CompressedRLE *rle = compressRLE((CombiscopeHistogram *) buffer, signalSize);
         delete[] buffer;
 
         CompressedHoff packed = compressHoffman(rle);
@@ -546,8 +539,8 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
                 packed.size,
                 const_cast<char *>(packed.data)
         };
+
     }
-    std::cout << "CPP pack OK" << std::endl;
 
     out.point = new char[totalSize];
     std::memcpy(out.point, V2, sizeof(V2));
@@ -564,7 +557,6 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
     }
     delete[] outQueue;
 
-    std::cout << "CPP out OK" << std::endl;
     return out;
 }
 

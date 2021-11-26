@@ -6,7 +6,7 @@
 #include <fstream>
 
 void delay(){
-    for(int i  = 0; i < 100000000; i++){
+    for(int i  = 0; i < 1000000000; i++){
         double fuck = 1.0/i;
     }
 }
@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 
 
     int signalCount = 2;
-
+/*
     CombiscopeHistogram raw_in[2] = {{
             1<<16,
             "Test XY signal 1",
@@ -69,6 +69,29 @@ int main(int argc, char* argv[]) {
              5
      }};
 
+    double dat[8] = {0, 1, 2, 3, 0, 3, 2, -3};
+*/
+    CombiscopeHistogram raw_in[2] = {{
+                                             1<<16,
+                                             "Test XY signal 1",
+                                             "This is comment",
+                                             "parrot",
+                                             Time {
+                                                     2021,
+                                                     11,
+                                                     3,
+                                                     3,
+                                                     15,
+                                                     16,
+                                                     12,
+                                                     33
+                                             },
+                                             0,
+                                             1,
+                                             2,
+                                             2,
+                                             5
+                                     }};
     double dat[8] = {0, 1, 2, 3, 0, 3, 2, -3};
 
     std::string outFilename = "d:/tmp/TS.SHT";

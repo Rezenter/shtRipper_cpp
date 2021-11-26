@@ -39,6 +39,7 @@ class _Signal(ctypes.Structure):
         ('count', ctypes.c_int)
     ]
 
+
 class _Header(ctypes.Structure):
     _fields_ = [
         ('type', ctypes.c_int),
@@ -82,7 +83,7 @@ class Ripper:
                     header.unit = signal['unit'][:128].encode(encoding)
                 else:
                     header.unit = ''.encode(encoding)
-
+                header.time = _Time()
                 '''if 'timestamp' in signal:
                     header.unit = signal['unit'].encode(encoding)
                 else:
@@ -96,6 +97,12 @@ class Ripper:
                                      (len(signal['x']), len(signal['y']))
                         return
                     header.count = len(signal['x'])
+                    header.tMin = 0
+                    header.tMax = 0
+                    header.yMin = 0
+                    header.delta = 0
+
+
                     serialised_data = (ctypes.c_char * (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2))()
                     for i in range(len(signal['x'])):
                         ctypes.memmove(ctypes.byref(serialised_data, i * 2 * ctypes.sizeof(ctypes.c_double)),
@@ -120,8 +127,7 @@ class Ripper:
                 py_headers.append(header)
                 self.count += 1
 
-            headers_size = (ctypes.sizeof(_Header)) * self.count
-            _headers = (ctypes.c_char * headers_size)()
+            _headers = (ctypes.c_char * (ctypes.sizeof(_Header) * self.count))()
             for header_ind in range(len(py_headers)):
                 ctypes.memmove(ctypes.byref(_headers, ctypes.sizeof(_Header) * header_ind),
                                ctypes.pointer(py_headers[header_ind]), ctypes.sizeof(_Header))
@@ -229,8 +235,6 @@ class Ripper:
             print(prepared_data.error)
             return prepared_data.error
 
-        print('data prepared')
-
         resp = self.lib.cram(ctypes.c_int(prepared_data.count), prepared_data.headers, prepared_data.data)
         if resp.size < 0:
             return 'dll error %d' % resp.size
@@ -238,6 +242,4 @@ class Ripper:
         with open('%s/%s' % (filepath, filename), 'wb') as file:
             buff = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size))
             file.write(bytearray(buff.contents))
-        self.lib.freeOut() #crash is a signal of access violation
-
         return ''
