@@ -61,7 +61,7 @@ encoding: str = 'cp1251'
 
 class Ripper:
     class _Unpacked:
-        def __init__(self, data: dict[str, dict]):
+        def __init__(self, data: dict):
             self.count = 0
             self.error = ''
 
