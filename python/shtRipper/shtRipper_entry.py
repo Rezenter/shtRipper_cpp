@@ -91,31 +91,51 @@ class Ripper:
                     #dt_object = datetime.fromtimestamp(time.time())
                     '''
                 if 'x' in signal and 'y' in signal:
-                    header.type = 1 << 16
-                    if len(signal['x']) != len(signal['y']):
-                        self.error = 'Error: X and Y arrays have different length: %d vs %d' % \
-                                     (len(signal['x']), len(signal['y']))
-                        return
-                    header.count = len(signal['x'])
-                    header.tMin = 0
-                    header.tMax = 0
-                    header.yMin = 0
-                    header.delta = 0
+                    if 'err' in signal:
+                        header.type = 2 << 16
+                        if len(signal['x']) != len(signal['y']) != len(signal['err']):
+                            self.error = 'Error: X, Y, and Err arrays have different length: %d vs %d vs %d'  % \
+                                         (len(signal['x']), len(signal['y']), len(signal['err']))
+                            return
+                        header.count = len(signal['x'])
 
+                        serialised_data = (ctypes.c_char * (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 3))()
+                        for i in range(len(signal['x'])):
+                            ctypes.memmove(ctypes.byref(serialised_data, i * 3 * ctypes.sizeof(ctypes.c_double)),
+                                           ctypes.pointer(ctypes.c_double(signal['x'][i])),
+                                           ctypes.sizeof(ctypes.c_double))
+                            ctypes.memmove(ctypes.byref(serialised_data, (i * 3 + 1) * ctypes.sizeof(ctypes.c_double)),
+                                           ctypes.pointer(ctypes.c_double(signal['y'][i])),
+                                           ctypes.sizeof(ctypes.c_double))
+                            ctypes.memmove(ctypes.byref(serialised_data, (i * 3 + 2) * ctypes.sizeof(ctypes.c_double)),
+                                           ctypes.pointer(ctypes.c_double(signal['err'][i])),
+                                           ctypes.sizeof(ctypes.c_double))
+                        py_data.append({
+                            'size': (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 3),
+                            'data': serialised_data
+                        })
+                        data_size += (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 3)
+                    else:
+                        header.type = 1 << 16
+                        if len(signal['x']) != len(signal['y']):
+                            self.error = 'Error: X and Y arrays have different length: %d vs %d' % \
+                                         (len(signal['x']), len(signal['y']))
+                            return
+                        header.count = len(signal['x'])
 
-                    serialised_data = (ctypes.c_char * (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2))()
-                    for i in range(len(signal['x'])):
-                        ctypes.memmove(ctypes.byref(serialised_data, i * 2 * ctypes.sizeof(ctypes.c_double)),
-                                       ctypes.pointer(ctypes.c_double(signal['x'][i])),
-                                       ctypes.sizeof(ctypes.c_double))
-                        ctypes.memmove(ctypes.byref(serialised_data, (i * 2 + 1) * ctypes.sizeof(ctypes.c_double)),
-                                       ctypes.pointer(ctypes.c_double(signal['y'][i])),
-                                       ctypes.sizeof(ctypes.c_double))
-                    py_data.append({
-                        'size': (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2),
-                        'data': serialised_data
-                    })
-                    data_size += (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2)
+                        serialised_data = (ctypes.c_char * (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2))()
+                        for i in range(len(signal['x'])):
+                            ctypes.memmove(ctypes.byref(serialised_data, i * 2 * ctypes.sizeof(ctypes.c_double)),
+                                           ctypes.pointer(ctypes.c_double(signal['x'][i])),
+                                           ctypes.sizeof(ctypes.c_double))
+                            ctypes.memmove(ctypes.byref(serialised_data, (i * 2 + 1) * ctypes.sizeof(ctypes.c_double)),
+                                           ctypes.pointer(ctypes.c_double(signal['y'][i])),
+                                           ctypes.sizeof(ctypes.c_double))
+                        py_data.append({
+                            'size': (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2),
+                            'data': serialised_data
+                        })
+                        data_size += (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2)
                 elif 'tMin' in signal and 'tMax' in signal and 'yMin' in signal and 'yAmp' in signal:
                     header.type = 0 << 16
                     self.error = 'Error: only XY signal is supported now.'
@@ -144,7 +164,7 @@ class Ripper:
         print('shtRipper v3')
         self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
                                            (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
-        #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython_64.dll')
+        #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython.dll')
 
         self.lib.test.argtypes = [ctypes.c_int]
         self.lib.test.restype = ctypes.c_int

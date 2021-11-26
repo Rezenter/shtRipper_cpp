@@ -499,10 +499,7 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
                 break;
             case 2:
                 flipSize *= 6; // 2 from long->double; 3 from x, y and z
-                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
-
-                out.size = -1;
-                return out;
+                break;
             default:
                 std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
 
