@@ -136,10 +136,29 @@ class Ripper:
                             'data': serialised_data
                         })
                         data_size += (len(signal['x']) * ctypes.sizeof(ctypes.c_double) * 2)
-                elif 'tMin' in signal and 'tMax' in signal and 'yMin' in signal and 'yAmp' in signal:
+                elif 'tMin' in signal and 'tMax' in signal and 'y' in signal and 'offset' in signal and 'yRes' in signal:
+                    header.count = len(signal['y'])
+                    if signal['tMin'] >= signal['tMax']:
+                        self.error = 'Error: tMin must be less than tMax: %f < %f' % \
+                                     (signal['tMin'], signal['tMax'])
+                        return
+                    header.tMin = signal['tMin']
+                    header.tMax = signal['tMax']
+
+                    header.yMin = signal['offset']
+                    header.delta = signal['yRes']
                     header.type = 0 << 16
-                    self.error = 'Error: only XY signal is supported now.'
-                    return
+
+                    serialised_data = (ctypes.c_char * header.count * ctypes.sizeof(ctypes.c_long))()
+                    for i in range(header.count):
+                        ctypes.memmove(ctypes.byref(serialised_data, i * ctypes.sizeof(ctypes.c_long)),
+                                       ctypes.pointer(ctypes.c_long(int((signal['y'][i] - header.yMin) / header.delta))),
+                                       ctypes.sizeof(ctypes.c_long))
+                    py_data.append({
+                        'size': (header.count * ctypes.sizeof(ctypes.c_long)),
+                        'data': serialised_data
+                    })
+                    data_size += header.count * ctypes.sizeof(ctypes.c_long)
                 else:
                     self.error = 'Error: bad signal format.'
                     return
@@ -164,7 +183,7 @@ class Ripper:
         print('shtRipper v3')
         self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
                                            (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
-        #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython.dll')
+        #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython_64.dll')
 
         self.lib.test.argtypes = [ctypes.c_int]
         self.lib.test.restype = ctypes.c_int

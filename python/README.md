@@ -18,19 +18,28 @@
     import shtRipper
 
     to_pack = {
-        'central Te': {
-            'comment': 'Температура в центре',
-            'unit': 'T_e(eV)',
-            'x': [0.0, 1.2, 1.9],
-            'y': [0, 1, 3.16]
-            'err': [0.1, 0.1, 0.5]
-        },
-        'signal 2': {
-            'comment': 'Температура в центре',
-            'unit': 'n_e(m^-3)',
-            'x': [0, 1],
-            'y': [0, 16]
-        }
+       'signal with error': {
+           'comment': 'Точки хранят ещё и погрешность, требует много памяти.',
+           'unit': 'T_e(eV)',
+           'x': x,
+           'y': T_c,
+           'err': T_err
+       },
+       'X Y signal': {
+           'comment': 'Точки хранятся парой значений, требует много памяти.',
+           'unit': 'T_e(eV)',
+           'x': x,
+           'y': n_c
+       },
+       'Y signal with fixed X-grid': {
+           'comment': 'Этот тип хранения данных предназначен для данных 16-бит АЦП',
+           'unit': 'U(V)',
+           'tMin': 0.0,  # mininun time
+           'tMax': 100.0,  # maximum time
+           'offset': 0.0,  # ADC zero level offset
+           'yRes': 0.0001,  # ADC resolution: 0.0001 Volt per adc bit
+           'y': [math.sin(i / 10) for i in range(100)]
+       }
     }
     
     packed = shtRipper.ripper.write(path='D:/tmp/', filename='example.SHT', data=to_pack)
