@@ -16,6 +16,7 @@
 Для упаковки данных в формат .sht:
 
     import shtRipper
+    import math  # used only for example sin() signal
 
     to_pack = {
        'signal with error': {
