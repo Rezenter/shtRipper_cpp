@@ -86,7 +86,28 @@ int main(int argc, char* argv[]) {
                                                      12,
                                                      33
                                              },
-                                             0,
+                                             2,
+                                             1,
+                                             2,
+                                             2,
+                                             5
+                                     },
+                                     {
+                                             1<<16,
+                                             "Test XY signal 2",
+                                             "This is comment",
+                                             "parrot",
+                                             Time {
+                                                     2021,
+                                                     11,
+                                                     3,
+                                                     3,
+                                                     15,
+                                                     16,
+                                                     12,
+                                                     33
+                                             },
+                                             2,
                                              1,
                                              2,
                                              2,

@@ -477,7 +477,7 @@ CompressedHoff compressHoffman(const CompressedRLE* uncompressed){
 
     return CompressedHoff{
             (char*) outBuff,
-            (cSize + 511 + 4)
+            (cSize + 511 + (int)sizeof(int))
     };
 }
 
@@ -507,11 +507,11 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
                 return out;
         }
 
-        int signalSize = sizeof(CombiscopeHistogram) - sizeof(unsigned char *) + flipSize * sizeof(long);
+        int signalSize = sizeof(CombiscopeHistogram) - 8 + flipSize * sizeof(long);
 
         auto* buffer = new unsigned char[signalSize];
-        std::memcpy(buffer, raw_in, sizeof(CombiscopeHistogram) - sizeof(unsigned char *));
-        auto* buffPosition = buffer + sizeof(CombiscopeHistogram) - sizeof(unsigned char *);
+        std::memcpy(buffer, raw_in, sizeof(CombiscopeHistogram) - 8);
+        auto* buffPosition = buffer + sizeof(CombiscopeHistogram) - 8;
 
 
         LongFlip flip{0};
