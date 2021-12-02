@@ -1,8 +1,8 @@
 # shtRipper
 
-Код для извлечения данных из .sht файлов. На текущий момент файлы версии ниже 2 не поддерживаются, что будет исправлено
- при необходимости.
+Код для извлечения данных из .sht файлов. На текущий момент файлы версии ниже 2 не поддерживаются, что будет исправлено при необходимости.
 
+Пример кода для чтения всего sht файла:
 
     import shtRipper
     
@@ -12,8 +12,18 @@
 
 ---   
 
+Пример кода для чтения только выбранных сигналов:
 
-Для упаковки данных в формат .sht:
+    import shtRipper
+    
+    filename = 'd:/data/cfm/original/sht40808.SHT'
+    res = ripper.read(filename, ['Лазер', 'Emission electrode voltage', 'Emission electrode current'])
+    print(res.keys())
+
+---
+
+
+Пример кода для упаковки данных в формат .sht:
 
     import shtRipper
     import math  # used only for example sin() signal
