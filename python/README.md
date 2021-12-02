@@ -2,6 +2,10 @@
 
 Код для извлечения данных из .sht файлов. На текущий момент файлы версии ниже 2 не поддерживаются, что будет исправлено при необходимости.
 
+Перед обновлением пакета остановить все запущенные питоновские интерпретаторы!
+Надёжнее удалять предыдущую версию, чтобы гарантированно обновились бинарные файлы.
+
+
 Пример кода для чтения всего sht файла:
 
     import shtRipper
@@ -17,7 +21,7 @@
     import shtRipper
     
     filename = 'd:/data/cfm/original/sht40808.SHT'
-    res = ripper.read(filename, ['Лазер', 'Emission electrode voltage', 'Emission electrode current'])
+    res = shtRipper.ripper.read(filename, ['Лазер', 'Emission electrode voltage', 'Emission electrode current'])
     print(res.keys())
 
 ---
