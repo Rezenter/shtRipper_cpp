@@ -81,18 +81,21 @@ static std::vector<std::thread> workers;
 static std::vector<CompressedHoff> tasks;
 static std::mutex lockIn;
 static std::mutex lockOut;
+static unsigned int reqCount;
+static char* req;
 static Out out = {
         0,
         nullptr
 };
 static char* currentOutPos = nullptr;
 
-Out parseSHT(const char* in);
+Out parseSHT(const char* in, unsigned int reqCount, char* requests);
 CompressedRLE* DecompressHoffman(const CompressedHoff* compressed);
 CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
 void appendOut(const CombiscopeHistogram*);
 
-Out packSHT(const int signalCount, const char* headers, const char* data);
+Out packSHT(int signalCount, const char* headers, const char* data);
+Out packADC(int signalCount, const char* header, const char* data);
 CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed, const int size);
 CompressedHoff compressHoffman(const CompressedRLE* uncompressed);
 

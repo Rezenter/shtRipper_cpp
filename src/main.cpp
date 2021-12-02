@@ -11,19 +11,37 @@ void delay(){
     }
 }
 
-
-int main(int argc, char* argv[]) {
+void read(){
     std::cout << "CPP shtRipper, revision:" << REVISION << "\n" << std::endl << std::flush;
 
-    /*
-    HINSTANCE hinstLib = LoadLibrary(TEXT("cygripperForPython.dll"));
-    std::cout << "dll loaded OK" << std::endl;
-*/
+    std::string inFilename = "d:/data/cfm/original/sht40808.SHT";
+    //std::string inFilename = "d:/tmp/TS.SHT";
 
-    delay();
-    std::cout << std::endl;
+    std::ifstream inFile;
+    inFile.open (inFilename, std::ios::in | std::ios::binary | std::ios::ate);
+    if (inFile.is_open()){
+        std::streampos size = inFile.tellg();
+        char * memblock = new char [size];
+        inFile.seekg (0, std::ios::beg);
+        inFile.read (memblock, size);
+        inFile.close();
+
+        std::cout << "the entire file content is in memory" << std::endl;
+
+        //char sig[128] = "Лазер";
+        char sig[128] = "Emission electrode voltage";
+        auto readed = parseSHT(memblock, 1, sig);
 
 
+        std::cout << "processed OK" << std::endl;
+
+        delete[] memblock;
+    }else{
+        std::cout << "Unable to open file" << std::endl;
+    }
+}
+
+void pack(){
     int signalCount = 2;
 /*
     CombiscopeHistogram raw_in[2] = {{
@@ -129,37 +147,11 @@ int main(int argc, char* argv[]) {
 
 
     std::cout << "\nNormal pack." << std::endl << std::flush;
-    delay();
+}
 
-    return 0;
-
-    std::string inFilename = "d:/data/cfm/original/sht40808.SHT";
-    //std::string inFilename = "d:/tmp/TS.SHT";
-
-    std::ifstream inFile;
-    inFile.open (inFilename, std::ios::in | std::ios::binary | std::ios::ate);
-    if (inFile.is_open()){
-        std::streampos size = inFile.tellg();
-        char * memblock = new char [size];
-        inFile.seekg (0, std::ios::beg);
-        inFile.read (memblock, size);
-        inFile.close();
-
-        std::cout << "the entire file content is in memory" << std::endl;
-
-
-        auto readed = parseSHT(memblock);
-
-
-        std::cout << "processed OK" << std::endl;
-
-        delete[] memblock;
-    }else{
-        std::cout << "Unable to open file" << std::endl;
-    }
-
-    //std::cout << ImportNIIFAFile(inFile.c_str()) << std::endl;
-
+int main(int argc, char* argv[]) {
+    read();
+    //pack();
 
     std::cout << "\nNormal exit." << std::endl << std::flush;
     delay();

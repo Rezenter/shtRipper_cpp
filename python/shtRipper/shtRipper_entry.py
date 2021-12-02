@@ -181,14 +181,14 @@ class Ripper:
 
     def __init__(self):
         print('shtRipper v3')
-        self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
-                                           (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
-        #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython_64.dll')
+        #self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
+        #                                   (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
+        self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython.dll')
 
         self.lib.test.argtypes = [ctypes.c_int]
         self.lib.test.restype = ctypes.c_int
 
-        self.lib.rip.argtypes = [ctypes.c_char_p]
+        self.lib.rip.argtypes = [ctypes.c_char_p, ctypes.c_uint, ctypes.c_char_p]
         self.lib.rip.restype = _Array
 
         self.lib.cram.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p]
@@ -205,7 +205,7 @@ class Ripper:
         print('ripper normal exit')
         self.lib.freeOut()
 
-    def read(self, filename: str) -> dict:  # add "defaultX" option.
+    def read(self, filename: str, signals: list = None) -> dict:  # add "defaultX" option.
         path = Path(filename)
         if not path.is_file():
             err: str = 'requested file "%s" does not exist.' % filename
@@ -218,8 +218,21 @@ class Ripper:
             data = file.read()
         data_p = ctypes.string_at(data, len(data))
 
+        if signals is None:
+            s_count = ctypes.c_uint(0)
+            s_point = ctypes.c_char_p()
+        else:
+            s_count = ctypes.c_uint(len(signals))
+            request = ''
+            for s in signals:
+                request += (s[:127] + '\0').ljust(128, '\0')
+            s_point = ctypes.create_string_buffer(request.encode(encoding), 128 * len(signals))
+
+
         #try-catch
-        resp = self.lib.rip(data_p)
+        resp = self.lib.rip(data_p,
+                            s_count,
+                            s_point)
 
         res: dict = {}
 
@@ -292,3 +305,24 @@ class Ripper:
 
         buff = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size))
         return bytearray(buff.contents)
+
+    def write_ADC(self, path: str, filename: str, data: dict) -> str:
+        filepath = Path(path)
+        if not filepath.is_dir():
+            err: str = 'requested path "%s" does not exist.' % filename
+            print(err)
+            return err
+
+        prepared_data = self._Unpacked(data)
+        if prepared_data.error != '':
+            print(prepared_data.error)
+            return prepared_data.error
+
+        resp = self.lib.cramADC(ctypes.c_int(prepared_data.count), prepared_data.headers, prepared_data.data)
+        if resp.size < 0:
+            return 'dll error %d' % resp.size
+
+        with open('%s/%s' % (filepath, filename), 'wb') as file:
+            buff = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size))
+            file.write(bytearray(buff.contents))
+        return ''
