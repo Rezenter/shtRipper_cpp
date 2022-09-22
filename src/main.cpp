@@ -1,6 +1,5 @@
 #include "version.h"
 #include <iostream>
-#include "magn_file.h"
 #include "compress.h"
 
 #include <fstream>

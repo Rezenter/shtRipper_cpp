@@ -1,6 +1,7 @@
 import ctypes
 from pathlib import Path
 import sys
+import platform
 from datetime import datetime
 
 # require python >= 3.5 for ctypes compiler match
@@ -181,9 +182,16 @@ class Ripper:
 
     def __init__(self):
         print('shtRipper v1.3')
-        self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
-                                           (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
-        #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython.dll')
+        if platform.system() == 'Windows':
+            self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
+                                               (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
+            #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython.dll')
+        elif platform.system() == 'Linux':
+            self.lib = ctypes.cdll.LoadLibrary('%s/binary/libripperForPython.so' % Path(__file__).parent)
+            #self.lib = ctypes.cdll.LoadLibrary('/home/nz/CLionProjects/shtRipper_cpp/python/shtRipper/binary/libripperForPython.so')
+        else:
+            print("Unsupported OS")
+            fuck_off
 
         self.lib.test.argtypes = [ctypes.c_int]
         self.lib.test.restype = ctypes.c_int

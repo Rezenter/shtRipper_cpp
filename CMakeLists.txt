@@ -15,6 +15,7 @@ include_directories(${CMAKE_SOURCE_DIR} include)
 
 add_executable(shtRipper src/main.cpp version.h src/compress.cpp)
 add_dependencies(shtRipper auto_increment_version)
+target_link_libraries(shtRipper pthread)
 
 add_library(ripperForPython MODULE src/pythonWrapper.cpp version.h src/compress.cpp)
 

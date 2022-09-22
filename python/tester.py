@@ -4,13 +4,14 @@ ripper = python.shtRipper.ripper
 
 import time
 
-filename = 'd:/data/cfm/original/sht40808.SHT'
+filename = '/home/nz/Downloads/sht41384.SHT'
 
 
 start_time = time.time()
 for iteration in range(1):
-    pass
+    #pass
     #res = shtRipper.ripper.read(filename)
+    res = ripper.read(filename)
     #print('yeah')
 print("--- %.2f seconds ---" % (time.time() - start_time))
 

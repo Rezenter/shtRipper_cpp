@@ -1,5 +1,6 @@
 #include "compress.h"
 #include <fstream>
+#include <cstring>
 
 int DefineVersion(const char * str){
     if (strcmp(str, V0) == 0){
