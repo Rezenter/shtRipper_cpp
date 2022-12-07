@@ -245,7 +245,7 @@ class Ripper:
         res: dict = {}
 
         curr: int = 0
-        print('extracted %d signals.' % resp.size)
+        #print('extracted %d signals.' % resp.size)
         for signal_count in range(resp.size):
             header = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(_Signal)).contents
             curr += 408
