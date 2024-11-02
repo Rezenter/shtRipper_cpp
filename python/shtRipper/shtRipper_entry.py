@@ -9,6 +9,9 @@ from datetime import datetime
 # c++ toolchain: Visual Studio 2019 (pro). Version 16. Arc: x86_amd64. CMake: bundled
 # c++ toolchain: Visual Studio 2019 (pro). Version 16. Arc: x86. CMake: bundled
 
+# to-do:
+# 1) try-catch read()
+# 2) clean memory before read
 
 class _Array(ctypes.Structure):
     _fields_ = [
@@ -185,13 +188,14 @@ class Ripper:
         if platform.system() == 'Windows':
             self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
                                                (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
-            #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython.dll')
+            #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython_64.dll')
         elif platform.system() == 'Linux':
             self.lib = ctypes.cdll.LoadLibrary('%s/binary/libripperForPython.so' % Path(__file__).parent)
             #self.lib = ctypes.cdll.LoadLibrary('/home/nz/CLionProjects/shtRipper_cpp/python/shtRipper/binary/libripperForPython.so')
         else:
-            print("Unsupported OS")
-            fuck_off
+            print("Unsupported OS. Trying to load MacOS binary")
+            self.lib = ctypes.cdll.LoadLibrary('%s/binary/libripperForPythonFor___.so' % Path(__file__).parent)
+            #fuck_off
 
         self.lib.test.argtypes = [ctypes.c_int]
         self.lib.test.restype = ctypes.c_int
@@ -224,6 +228,14 @@ class Ripper:
             }
         with open(path, 'rb') as file:
             data = file.read()
+        if len(data) < 100:
+            err: str = 'requested file "%s" has suspicious size' % filename
+            print(err)
+            return {
+                'ok': False,
+                'err': err
+            }
+
         data_p = ctypes.string_at(data, len(data))
 
         if signals is None:

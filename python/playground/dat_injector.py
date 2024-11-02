@@ -59,6 +59,7 @@ for shotn in shots:
                 while signal['x'][sht_index] < time:
                     sht_index += 1
                 # now sht_index is the index of the point right after the requested time. So time >= signal['x'][sht_index - 1]
+                # interpolate on the dat grid
                 time_slice[signal_ind] = signal_integrated[sht_index - 1] + (signal_integrated[sht_index] - signal_integrated[sht_index - 1]) * (time - signal['x'][sht_index - 1]) / (signal['x'][sht_index] - signal['x'][sht_index - 1])  # override signal with interpolated data from integrated signal
             file.write(struct.pack(slice_format, *time_slice))
             stop += slice_size

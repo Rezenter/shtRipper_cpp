@@ -150,7 +150,7 @@ void appendOut(const CombiscopeHistogram* histogram){
                 break;
             }
         }
-        if(char_i == 128) {
+        if(char_i == 128 || req[i * 128 + char_i] == 0)  {
             found = true;
             break;
         }
@@ -263,6 +263,7 @@ Out parseSHT(const char* in, const unsigned int reqC, char* requests) { // adapt
     }
     if(!tasks.empty()){
         size_t threadCount = std::thread::hardware_concurrency();
+
 
         out.point = new char[totalInSize * 15];
         currentOutPos = out.point;
@@ -661,8 +662,10 @@ int innerTest(const int n){
 }
 
 void innerFreeOut(){
-    delete[] out.point;
-    out.size = 0;
+    if(out.size != 0){
+        delete[] out.point;
+        out.size = 0;
+    }
     currentOutPos = nullptr;
     reqCount = 0;
     req = nullptr;
