@@ -271,15 +271,17 @@ class Ripper:
                 'time': '%d.%d.%d %d:%d:%d.%d' % (t.year, t.month, t.day, t.hour, t.min, t.sec, t.msec)
             }
             if header.type >> 16 == 0:
-                t_min = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
-                curr += 8
-                t_max = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
-                curr += 8
-                data = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
+                #t_min = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
+                #curr += 8
+                #t_max = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double)).contents.value
+                #curr += 8
+                data_x = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
                 curr += header.count * 8
-                t_mult = (t_max - t_min) / (header.count - 1)
-                signal['x'] = [i * t_mult + t_min for i in range(header.count)]  # move computation to c++
-                signal['y'] = data[:]
+                data_y = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
+                curr += header.count * 8
+                #t_mult = (t_max - t_min) / (header.count - 1)
+                signal['x'] = data_x[:]
+                signal['y'] = data_y[:]
 
             elif header.type >> 16 == 1:
                 print('!!! this file type is not supported yet. Please, give it to Nikita.')

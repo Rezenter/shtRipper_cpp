@@ -182,43 +182,29 @@ void appendOut(const CombiscopeHistogram* histogram){
     }
 
     if(found) {
-        outs[out.size].size = SIGNAL_HEADER_SIZE + (histogram->nPoints + 2) * sizeof(double);
+        outs[out.size].size = SIGNAL_HEADER_SIZE + (histogram->nPoints * 2) * sizeof(double);
         outs[out.size].point = new char[outs[out.size].size];
 
         std::memcpy(outs[out.size].point, histogram, SIGNAL_HEADER_SIZE);
 
         char* ptr = outs[out.size].point + SIGNAL_HEADER_SIZE;
-        auto *dBuff = (double *) (ptr + 2 * sizeof(double));
-
-
-        switch (histogram->type >> 16) {
-            case 0:
-                std::memcpy(ptr, &histogram->tMin, 2 * sizeof(double));
-                break;
-            case 1:
-                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
-                break;
-            case 2:
-                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
-                break;
-            default:
-                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
-                break;
-        }
+        auto *dBuff = (double *) (ptr);
         out.size += 1;
         lockOut.unlock();
 
         switch (histogram->type >> 16) {
             case 0: {
-                LongFlip flip{0};
+                double tMult = (histogram->tMax - histogram->tMin) / (histogram->nPoints - 1);
 
+                LongFlip flip{0};
                 for (int i = 0; i < histogram->nPoints; i++) {
                     flip.asChar[0] = histogram->data[i];
                     flip.asChar[1] = histogram->data[histogram->nPoints + i];
                     flip.asChar[2] = histogram->data[histogram->nPoints * 2 + i];
                     flip.asChar[3] = histogram->data[histogram->nPoints * 3 + i];
 
-                    dBuff[i] = flip.asLong * histogram->delta + histogram->yMin; // y coordinates
+                    dBuff[i] = i * tMult + histogram->tMin;
+                    dBuff[i + histogram->nPoints] = flip.asLong * histogram->delta + histogram->yMin; // y coordinates
                 }
                 break;
             }

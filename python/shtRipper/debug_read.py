@@ -23,6 +23,7 @@ for shotn in shots:
     print('read OK\n')
 
 d = 1
+print('OK\n')
 for i in range(50000000):  # wait for possible errors in dll
     d *= 56784678 * i / 5423621543
 
