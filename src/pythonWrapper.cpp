@@ -14,7 +14,7 @@
 
 extern "C"{
     EXPORT int test(int n) {return innerTest(n);}
-    EXPORT Out rip(const char* in, unsigned int rC, char* requests) {return parseSHT(in, rC, requests);}
+    EXPORT Out rip(const char* path, unsigned int rC, char* requests) {return parseSHT(path, rC, requests);}
     EXPORT Out cram(const int count, const char* headers, const char* data) {return packSHT(count, headers, data);}
     //EXPORT Out cramADC(const int count, const char* headers, const char* data) {return packADC(count, headers, data);}
     EXPORT void freeOut() {return innerFreeOut();}

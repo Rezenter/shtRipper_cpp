@@ -90,7 +90,8 @@ static Out out = {
 };
 static char* currentOutPos = nullptr;
 
-Out parseSHT(const char* in, unsigned int reqCount, char* requests);
+Out parseSHT(const char* path, unsigned int reqCount, char* requests);
+
 CompressedRLE* DecompressHoffman(const CompressedHoff* compressed);
 CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
 void appendOut(const CombiscopeHistogram*);

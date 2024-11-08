@@ -120,7 +120,8 @@ CompressedRLE* DecompressHoffman(const CompressedHoff* compressed){
         }
         RLE->data[i] = (unsigned char)pGraph->Vertex[bit];
     }
-    //std::cout << "DecompressHoffman() OK" << std::endl;
+    delete[] compressed->data;
+    //std::cout << "will break old python-based read!" << std::endl;
     return RLE;
 }
 
@@ -238,7 +239,17 @@ void appendOut(const CombiscopeHistogram* histogram){
     delete histogram;
 }
 
-Out parseSHT(const char* in, const unsigned int reqC, char* requests) { // adapted version of RestoreHist(..., int version)
+Out parseSHT(const char* path, const unsigned int reqC, char* requests) { // adapted version of RestoreHist(..., int version)
+    std::string p(path);
+    //std::cout << "new OK: " << p << std::endl;
+
+    std::ifstream input(path, std::ios::binary);
+    if (!input.is_open()){
+        std::cout << "failed to open " << path << std::endl;
+        out.size = -7;
+        return out;
+    }
+
     //std::cout << "c++ begin" << std::endl;
     innerFreeOut();
     int compressedSignalSize;
@@ -246,66 +257,67 @@ Out parseSHT(const char* in, const unsigned int reqC, char* requests) { // adapt
     reqCount = reqC;
     req = requests;
 
-    const int version = DefineVersion(in);
-    size_t currentPos = sizeof(V1);
-    if(version == -1){
+    char ver[12];
+    input.read(ver, sizeof(V2));
+    if (strcmp(ver, V2) != 0 or input.gcount() != sizeof(V2)){
+        std::cout << "Bad file: " << ver << ' ' << input.gcount() << std::endl;
         out.size = -1;
         return out;
     }
-    //std::cout << "version " << version << std::endl;
+
+    //size_t currentPos = sizeof(V1);
 
     int signalCount;
-    std::memcpy(&signalCount, in + currentPos, sizeof(int));
-    currentPos += sizeof(int);
+    input.read(reinterpret_cast<char*>(&signalCount), sizeof(signalCount));
+    if (input.gcount() != sizeof(signalCount)){
+        std::cout << "Bad file size: "  << ' ' << input.gcount() << std::endl;
+        out.size = -1;
+        return out;
+    }
+    //std::memcpy(&signalCount, in + currentPos, sizeof(int));
+    //currentPos += sizeof(int);
 
     //std::cout << "signal count " << signalCount << std::endl;
 
     int totalInSize = 0;
     for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
         //std::cout << signalIndex << std::endl;
-        switch(version){
-            case 0: {
-                //std::cout << "case 0" << std::endl;
-                out.size = -2;
-                return out;
-            }
-            case 1:{
-                //std::cout << "case 1" << std::endl;
-                out.size = -3;
-                return out;
-            }
-            case 2:{
-                //std::cout << "case 2" << std::endl;
-                std::cout << "read pos " << currentPos << std::endl;
-                std::memcpy(&compressedSignalSize, in + currentPos, sizeof(int));
-                std::cout << "memcpy OK" << std::endl;
-                fuck
-                totalInSize += compressedSignalSize;
-                currentPos += sizeof(int);
 
-                if(compressedSignalSize <= 0){
-                    //std::cout << "bad compressed signal size " << compressedSignalSize << std::endl;
-                    out.size = -4;
-                    return out;
-                }
-                //std::cout << "task " << signalIndex << " size " << compressedSignalSize << std::endl;
-                tasks.push_back(CompressedHoff {
-                        in + currentPos,
-                        compressedSignalSize
-                    }
-                );
-                //std::cout << "Push ok" << std::endl;
-                currentPos += compressedSignalSize;
-                break;
-            }
-            default: {
-                //std::cout << "case def" << std::endl;
-                out.size = -5;
-                return out;
-            }
+        //std::cout << "case 2" << std::endl;
+        //std::cout << "read compressed signal " << signalIndex << std::endl;
+        input.read(reinterpret_cast<char*>(&compressedSignalSize), sizeof(compressedSignalSize));
+        if (input.gcount() != sizeof(compressedSignalSize)){
+            std::cout << "Bad file size: "  << ' ' << input.gcount() << std::endl;
+            break;
         }
+        //std::cout << "compressed signal size: " << compressedSignalSize << std::endl;
+        //std::memcpy(&compressedSignalSize, in + currentPos, sizeof(int));
+        //std::cout << "memcpy OK" << std::endl;
+        //std::cout << "fuck \n\n\n\n";
+        //totalInSize += compressedSignalSize;
+        //currentPos += sizeof(int);
+
+        if(compressedSignalSize <= 0){
+            //std::cout << "bad compressed signal size " << compressedSignalSize << std::endl;
+            break;
+        }
+        //std::cout << "task " << signalIndex << " size " << compressedSignalSize << std::endl;
+        char* compressed = new char[compressedSignalSize];
+        input.read(compressed, compressedSignalSize);
+        if (input.gcount() != compressedSignalSize){
+            std::cout << "Bad file size: "  << ' ' << input.gcount() << ' ' << compressedSignalSize << std::endl;
+            break;
+        }
+        tasks.push_back(CompressedHoff {
+                                compressed,
+                                compressedSignalSize
+                        }
+        );
+        //std::cout << "Push ok" << std::endl;
+        //currentPos += compressedSignalSize;
     }
     //std::cout << "tasks pushed"  << std::endl;
+    input.close();
 
     if(!tasks.empty()){
         outs = new Out[tasks.size()];
@@ -313,8 +325,8 @@ Out parseSHT(const char* in, const unsigned int reqC, char* requests) { // adapt
         size_t threadCount = std::thread::hardware_concurrency();
 
         //std::cout << "starting workers: " << threadCount << std::endl;
-        threadCount = 1; //DEBUG!
-        std::cout << "\n\nWARNING!!! DEBUG SINGLE THREAD\n\n" << std::endl;
+        //threadCount = 1; //DEBUG!
+        //std::cout << "\n\nWARNING!!! DEBUG SINGLE THREAD\n\n" << std::endl;
 
 
         out.size = 0;
@@ -333,7 +345,7 @@ Out parseSHT(const char* in, const unsigned int reqC, char* requests) { // adapt
     }
 
     int totalOutSize = 0;
-    for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
+    for(int signalIndex = 0; signalIndex < out.size; signalIndex++){
         totalOutSize += outs[signalIndex].size;
     }
     //std::cout << "totalOutSize " << totalOutSize << std::endl;
@@ -347,6 +359,7 @@ Out parseSHT(const char* in, const unsigned int reqC, char* requests) { // adapt
         delete[] outs[signalIndex].point;
     }
     //std::cout << "c++ OK " << out.size << std::endl;
+
     return out;
 }
 

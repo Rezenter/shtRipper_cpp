@@ -223,7 +223,8 @@ class Ripper:
 
     def read(self, filename: str, signals: list = None) -> dict:  # add "defaultX" option.
         path = Path(filename)
-        print('Reading file: ', str(path.absolute()))
+        #print('Reading file: ', str(path.absolute()))
+
         if not path.is_file():
             err: str = 'requested file "%s" does not exist.' % filename
             print(err)
@@ -231,18 +232,9 @@ class Ripper:
                 'ok': False,
                 'err': err
             }
-        with open(path, 'rb') as file:
-            data = file.read()
-        print('total compressed size = ', len(data))
-        if len(data) < 100:
-            err: str = 'requested file "%s" has suspicious size' % filename
-            print(err)
-            return {
-                'ok': False,
-                'err': err
-            }
 
-        data_p = ctypes.string_at(data, len(data))
+        pathStr = str(path.absolute()) + '\0'
+        path_p = ctypes.c_char_p(pathStr.encode())
 
         if signals is None:
             s_count = ctypes.c_uint(0)
@@ -256,7 +248,7 @@ class Ripper:
 
 
         #try-catch
-        resp = self.lib.rip(data_p,
+        resp = self.lib.rip(path_p,
                             s_count,
                             s_point)
 
@@ -301,6 +293,8 @@ class Ripper:
                 tmp = header.name.decode(encoding, 'replace')
                 print('sht file is broken. bad signal name: ', tmp)
                 res[tmp] = signal
+
+        self.lib.freeOut()
         return res
 
     def write(self, path: str, filename: str, data: dict) -> str:
