@@ -16,10 +16,12 @@ int DefineVersion(const char * str){
 }
 
 CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed){
+    //std::cout << "DecompressRLE()" << std::endl;
     int j;
     int Delta;
     int NBytes = 0;
     int i = 0;
+    //std::cout << "compressed size " << compressed->size << std::endl;
     while(i < compressed->size){
         Delta = compressed->data[i]&127;
         if ((compressed->data[i]&128) == 0){
@@ -30,7 +32,7 @@ CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed){
         NBytes += Delta;
     }
     auto OutBuff = new unsigned char[NBytes];
-
+    //int tmp = NBytes;
     NBytes = 0;
     i = 0;
 
@@ -49,10 +51,20 @@ CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed){
         }
         NBytes += Delta;
     }
+    //std::cout << "DecompressRLE() OK" << std::endl;
+    //auto wtf = (CombiscopeHistogram*)OutBuff;
+    //std::cout << "npoints " << wtf->nPoints << ' ' << sizeof(wtf->nPoints) << std::endl;
+    //std::cout << "NBytes " << tmp << ' ' << wtf->nPoints * sizeof(double) << std::endl;
+    //std::cout << "size " << (tmp - sizeof(int)*2 - 128*3 - sizeof(Time) - sizeof(double)*4) << std::endl;
+    //std::cout << "manual " << (tmp - sizeof(int)*2 - 128*3 - sizeof(Time) - sizeof(double)*4) / 4 << std::endl;
+
+    // int arrSize = histogram->nPoints * sizeof(double);
+
     return (CombiscopeHistogram*)OutBuff;
 }
 
 bool CreateGraph(const CompressedHoff* signal, CompressionGraph *Graph){
+    //std::cout << "CreateGraph()" << std::endl;
     unsigned short mask[256];
     for(unsigned short & el : mask){
         el = 512;
@@ -78,10 +90,13 @@ bool CreateGraph(const CompressedHoff* signal, CompressionGraph *Graph){
         }
     }
     Graph[255] = Graph[PrevVertex - 256];
+    //std::cout << "CreateGraph() OK" << std::endl;
     return true;
 }
 
 CompressedRLE* DecompressHoffman(const CompressedHoff* compressed){
+    //std::cout << "DecompressHoffman()" << std::endl;
+    //std::cout << "hoffman size " << compressed->size << std::endl;
     CompressionGraph Graph[256], *pGraph;
     if(!CreateGraph(compressed, Graph)){
         return nullptr;
@@ -105,18 +120,21 @@ CompressedRLE* DecompressHoffman(const CompressedHoff* compressed){
         }
         RLE->data[i] = (unsigned char)pGraph->Vertex[bit];
     }
+    //std::cout << "DecompressHoffman() OK" << std::endl;
     return RLE;
 }
 
 CombiscopeHistogram *DecompressHist(const CompressedHoff compressed){
+    //std::cout << "DecompressHist()" << std::endl;
     CompressedRLE* signalRLE = DecompressHoffman(&compressed);
     if(signalRLE == nullptr){
         return nullptr;
     }
-
+    //std::cout << "RLE size " << signalRLE->size << std::endl;
     auto *signal = DecompressRLE(signalRLE);
     delete signalRLE;
 
+    //std::cout << "DecompressHist() OK" << std::endl;
     return signal;
 }
 
@@ -128,19 +146,25 @@ void worker(){
             lockIn.unlock();
             return;
         }
+        //std::cout << "worker gets data... " << tasks.size() << std::endl;
         CompressedHoff task = tasks.back();
         tasks.pop_back();
+        //std::cout << "worker pop" << std::endl;
 
         lockIn.unlock();
 
+        //std::cout << "worker decompressing... " << task.size << std::endl;
         signal = DecompressHist(task);
+        //std::cout << "worker OK" << std::endl;
         if(signal != nullptr){
             appendOut(signal);
         }
+        //std::cout << "worker next\n\n" << std::endl;
     }
 }
 
 void appendOut(const CombiscopeHistogram* histogram){
+    //std::cout << "appendOut()" << std::endl;
     lockOut.lock();
     bool found = (reqCount == 0);
     for(int i = 0; i < reqCount; i++) {
@@ -157,24 +181,27 @@ void appendOut(const CombiscopeHistogram* histogram){
     }
 
     if(found) {
-        std::memcpy(currentOutPos, histogram, SIGNAL_HEADER_SIZE);
-        currentOutPos += SIGNAL_HEADER_SIZE;
-        auto *dBuff = (double *) currentOutPos;
+        outs[out.size].size = SIGNAL_HEADER_SIZE + (histogram->nPoints + 2) * sizeof(double);
+        outs[out.size].point = new char[outs[out.size].size];
 
-        int arrSize = histogram->nPoints * sizeof(double);
+        std::memcpy(outs[out.size].point, histogram, SIGNAL_HEADER_SIZE);
+
+        char* ptr = outs[out.size].point + SIGNAL_HEADER_SIZE;
+        auto *dBuff = (double *) (ptr + 2 * sizeof(double));
+
+
         switch (histogram->type >> 16) {
             case 0:
-                std::memcpy(currentOutPos, &histogram->tMin, 2 * sizeof(double));
-                dBuff = (double *) (currentOutPos + 2 * sizeof(double));
-                currentOutPos += arrSize + 2 * sizeof(double);
+                std::memcpy(ptr, &histogram->tMin, 2 * sizeof(double));
                 break;
             case 1:
-                currentOutPos += 2 * arrSize;
+                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
                 break;
             case 2:
-                currentOutPos += 3 * arrSize;
+                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
                 break;
             default:
+                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
                 break;
         }
         out.size += 1;
@@ -183,6 +210,7 @@ void appendOut(const CombiscopeHistogram* histogram){
         switch (histogram->type >> 16) {
             case 0: {
                 LongFlip flip{0};
+
                 for (int i = 0; i < histogram->nPoints; i++) {
                     flip.asChar[0] = histogram->data[i];
                     flip.asChar[1] = histogram->data[histogram->nPoints + i];
@@ -203,12 +231,15 @@ void appendOut(const CombiscopeHistogram* histogram){
                 break;
         }
     }else{
+        out.size += 1;
         lockOut.unlock();
     }
+    //std::cout << "appendOut() OK" << std::endl;
     delete histogram;
 }
 
 Out parseSHT(const char* in, const unsigned int reqC, char* requests) { // adapted version of RestoreHist(..., int version)
+    //std::cout << "c++ begin" << std::endl;
     innerFreeOut();
     int compressedSignalSize;
 
@@ -221,64 +252,102 @@ Out parseSHT(const char* in, const unsigned int reqC, char* requests) { // adapt
         out.size = -1;
         return out;
     }
+    //std::cout << "version " << version << std::endl;
 
     int signalCount;
     std::memcpy(&signalCount, in + currentPos, sizeof(int));
     currentPos += sizeof(int);
 
+    //std::cout << "signal count " << signalCount << std::endl;
+
     int totalInSize = 0;
     for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
+        //std::cout << signalIndex << std::endl;
         switch(version){
             case 0: {
+                //std::cout << "case 0" << std::endl;
                 out.size = -2;
                 return out;
             }
             case 1:{
+                //std::cout << "case 1" << std::endl;
                 out.size = -3;
                 return out;
             }
             case 2:{
+                //std::cout << "case 2" << std::endl;
+                std::cout << "read pos " << currentPos << std::endl;
                 std::memcpy(&compressedSignalSize, in + currentPos, sizeof(int));
+                std::cout << "memcpy OK" << std::endl;
+                fuck
                 totalInSize += compressedSignalSize;
                 currentPos += sizeof(int);
 
                 if(compressedSignalSize <= 0){
+                    //std::cout << "bad compressed signal size " << compressedSignalSize << std::endl;
                     out.size = -4;
                     return out;
                 }
+                //std::cout << "task " << signalIndex << " size " << compressedSignalSize << std::endl;
                 tasks.push_back(CompressedHoff {
                         in + currentPos,
                         compressedSignalSize
                     }
                 );
-
+                //std::cout << "Push ok" << std::endl;
                 currentPos += compressedSignalSize;
                 break;
             }
             default: {
+                //std::cout << "case def" << std::endl;
                 out.size = -5;
                 return out;
             }
         }
     }
+    //std::cout << "tasks pushed"  << std::endl;
+
     if(!tasks.empty()){
+        outs = new Out[tasks.size()];
+
         size_t threadCount = std::thread::hardware_concurrency();
 
+        //std::cout << "starting workers: " << threadCount << std::endl;
+        threadCount = 1; //DEBUG!
+        std::cout << "\n\nWARNING!!! DEBUG SINGLE THREAD\n\n" << std::endl;
 
-        out.point = new char[totalInSize * 15];
-        currentOutPos = out.point;
 
+        out.size = 0;
         for(size_t i = 0; i < threadCount; i++){
             std::thread thread(worker);
             workers.push_back(move(thread));
         }
 
+        //std::cout << "waiting..." << std::endl;
+
         for(std::thread &thread : workers){
             thread.join();
         }
+        //std::cout << "joined" << std::endl;
         workers.clear();
     }
-    return out;  // use currOutPos
+
+    int totalOutSize = 0;
+    for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
+        totalOutSize += outs[signalIndex].size;
+    }
+    //std::cout << "totalOutSize " << totalOutSize << std::endl;
+    out.point = new char[totalOutSize];
+    currentOutPos = out.point;
+    //std::cout << "allocated" << std::endl;
+    for(int signalIndex = 0; signalIndex < out.size; signalIndex++){
+        std::memcpy(currentOutPos, outs[signalIndex].point, outs[signalIndex].size);
+        currentOutPos += outs[signalIndex].size;
+        //std::cout << "del" << std::endl;
+        delete[] outs[signalIndex].point;
+    }
+    //std::cout << "c++ OK " << out.size << std::endl;
+    return out;
 }
 
 CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed, const int size){

@@ -14,7 +14,6 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${BUILD_ARCH}")
 include_directories(${CMAKE_SOURCE_DIR} include)
 
 add_executable(shtRipper src/main.cpp version.h src/compress.cpp)
-add_dependencies(shtRipper auto_increment_version)
 target_link_libraries(shtRipper pthread)
 
 add_library(ripperForPython MODULE src/pythonWrapper.cpp version.h src/compress.cpp)
@@ -25,10 +24,3 @@ install(TARGETS ripperForPython
 install(TARGETS ripperForPython
         CONFIGURATIONS Release
         LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/python/shtRipper/binary/)
-
-ADD_CUSTOM_TARGET(
-        auto_increment_version
-        ${CMAKE_COMMAND}
-        -D VERSION_FILE=${CMAKE_SOURCE_DIR}/version.h
-        -P ${CMAKE_SOURCE_DIR}/AutoVersion.cmake
-)

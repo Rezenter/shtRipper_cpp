@@ -183,12 +183,16 @@ class Ripper:
                 offset += entry['size']
             self.data = ctypes.cast(ctypes.pointer(_data), ctypes.c_char_p)
 
-    def __init__(self):
-        print('shtRipper v1.3')
+    def __init__(self, debug=False):
+        print('shtRipper v1.5')
         if platform.system() == 'Windows':
-            self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
+            if debug:
+                print('RUNNING DEBUG DLL!')
+                self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython.dll')
+            else:
+                self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
                                                (Path(__file__).parent, 64 if sys.maxsize > 0x100000000 else 32))
-            #self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython_64.dll')
+
         elif platform.system() == 'Linux':
             self.lib = ctypes.cdll.LoadLibrary('%s/binary/libripperForPython.so' % Path(__file__).parent)
             #self.lib = ctypes.cdll.LoadLibrary('/home/nz/CLionProjects/shtRipper_cpp/python/shtRipper/binary/libripperForPython.so')
@@ -219,6 +223,7 @@ class Ripper:
 
     def read(self, filename: str, signals: list = None) -> dict:  # add "defaultX" option.
         path = Path(filename)
+        print('Reading file: ', str(path.absolute()))
         if not path.is_file():
             err: str = 'requested file "%s" does not exist.' % filename
             print(err)
@@ -228,6 +233,7 @@ class Ripper:
             }
         with open(path, 'rb') as file:
             data = file.read()
+        print('total compressed size = ', len(data))
         if len(data) < 100:
             err: str = 'requested file "%s" has suspicious size' % filename
             print(err)
@@ -289,7 +295,12 @@ class Ripper:
             elif header.type >> 16 == 2:
                 print('!!! this file type is not supported yet. Please, give it to Nikita.')
                 curr += header.count * 8 * 3
-            res[header.name.decode(encoding)] = signal
+            try:
+                res[header.name.decode(encoding)] = signal
+            except UnicodeDecodeError:
+                tmp = header.name.decode(encoding, 'replace')
+                print('sht file is broken. bad signal name: ', tmp)
+                res[tmp] = signal
         return res
 
     def write(self, path: str, filename: str, data: dict) -> str:

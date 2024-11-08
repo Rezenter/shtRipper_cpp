@@ -1,17 +1,29 @@
 import shtRipper_entry
-ripper = shtRipper_entry.Ripper()
+ripper = shtRipper_entry.Ripper(True)
 
 import json
 
-print('reading...')
-filename = 'd:/tmp/sht41055.SHT'
+shots = [
+    39338,
+    42190,
+    43198,
+    44824
+]
 
-#res = ripper.read(filename)
-res = ripper.read(filename, ['Лазер', 'Emission electrode voltage', 'Emission electrode current'])
-print('read OK')
+for shotn in shots:
+    print('shotn ', shotn)
+    filename = '\\\\172.16.12.127\\Data\\sht%05d.SHT' % shotn
+    #filename = 'sht%05d.SHT' % shotn
 
+    res = ripper.read(filename)
+    #res = ripper.read(filename, ['Лазер', 'Emission electrode voltage', 'Emission electrode current'])
+    if 'err' in res:
+        print(res['err'])
 
-#for i in range(50000000):  # wait for possible errors in dll
-#    d = 56784678 / 5423621543
+    print('read OK\n')
 
-print('OK.')
+d = 1
+for i in range(50000000):  # wait for possible errors in dll
+    d *= 56784678 * i / 5423621543
+
+print('OK. ', d)

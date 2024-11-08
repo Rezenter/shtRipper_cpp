@@ -4,6 +4,7 @@
 #include <thread>
 #include <mutex>
 #include <vector>
+#include <array>
 
 #include <iostream>  // debug
 
@@ -98,6 +99,9 @@ Out packSHT(int signalCount, const char* headers, const char* data);
 Out packADC(int signalCount, const char* header, const char* data);
 CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed, const int size);
 CompressedHoff compressHoffman(const CompressedRLE* uncompressed);
+
+static Out* outs;
+//static size_t curr = 0;
 
 int innerTest(int n);
 
