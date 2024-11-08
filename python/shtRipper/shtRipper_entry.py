@@ -184,7 +184,7 @@ class Ripper:
             self.data = ctypes.cast(ctypes.pointer(_data), ctypes.c_char_p)
 
     def __init__(self, debug=False):
-        print('shtRipper v1.5')
+        print('shtRipper v1.5.1')
         if platform.system() == 'Windows':
             if debug:
                 print('RUNNING DEBUG DLL!')

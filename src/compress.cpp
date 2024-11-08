@@ -183,6 +183,7 @@ void appendOut(const CombiscopeHistogram* histogram){
 
     if(found) {
         outs[out.size].size = SIGNAL_HEADER_SIZE + (histogram->nPoints * 2) * sizeof(double);
+        //std::cout << "appendOut() out size: " << outs[out.size].size << std::endl;
         outs[out.size].point = new char[outs[out.size].size];
 
         std::memcpy(outs[out.size].point, histogram, SIGNAL_HEADER_SIZE);
@@ -218,7 +219,7 @@ void appendOut(const CombiscopeHistogram* histogram){
                 break;
         }
     }else{
-        out.size += 1;
+        //out.size += 1;
         lockOut.unlock();
     }
     //std::cout << "appendOut() OK" << std::endl;
@@ -232,13 +233,13 @@ Out parseSHT(const char* path, const unsigned int reqC, char* requests) { // ada
     std::ifstream input(path, std::ios::binary);
     if (!input.is_open()){
         std::cout << "failed to open " << path << std::endl;
-        out.size = -7;
+        out.size = 0;
         return out;
     }
 
     //std::cout << "c++ begin" << std::endl;
     innerFreeOut();
-    int compressedSignalSize;
+    size_t compressedSignalSize;
 
     reqCount = reqC;
     req = requests;
@@ -247,7 +248,7 @@ Out parseSHT(const char* path, const unsigned int reqC, char* requests) { // ada
     input.read(ver, sizeof(V2));
     if (strcmp(ver, V2) != 0 or input.gcount() != sizeof(V2)){
         std::cout << "Bad file: " << ver << ' ' << input.gcount() << std::endl;
-        out.size = -1;
+        out.size = 0;
         return out;
     }
 
@@ -257,7 +258,7 @@ Out parseSHT(const char* path, const unsigned int reqC, char* requests) { // ada
     input.read(reinterpret_cast<char*>(&signalCount), sizeof(signalCount));
     if (input.gcount() != sizeof(signalCount)){
         std::cout << "Bad file size: "  << ' ' << input.gcount() << std::endl;
-        out.size = -1;
+        out.size = 0;
         return out;
     }
     //std::memcpy(&signalCount, in + currentPos, sizeof(int));
@@ -271,11 +272,13 @@ Out parseSHT(const char* path, const unsigned int reqC, char* requests) { // ada
 
         //std::cout << "case 2" << std::endl;
         //std::cout << "read compressed signal " << signalIndex << std::endl;
-        input.read(reinterpret_cast<char*>(&compressedSignalSize), sizeof(compressedSignalSize));
-        if (input.gcount() != sizeof(compressedSignalSize)){
+        uint32_t tmp;
+        input.read(reinterpret_cast<char*>(&tmp), sizeof(tmp));
+        if (input.gcount() != sizeof(tmp)){
             std::cout << "Bad file size: "  << ' ' << input.gcount() << std::endl;
             break;
         }
+        compressedSignalSize = (size_t)tmp;
         //std::cout << "compressed signal size: " << compressedSignalSize << std::endl;
         //std::memcpy(&compressedSignalSize, in + currentPos, sizeof(int));
         //std::cout << "memcpy OK" << std::endl;
@@ -284,7 +287,7 @@ Out parseSHT(const char* path, const unsigned int reqC, char* requests) { // ada
         //currentPos += sizeof(int);
 
         if(compressedSignalSize <= 0){
-            //std::cout << "bad compressed signal size " << compressedSignalSize << std::endl;
+            std::cout << "bad compressed signal size " << compressedSignalSize << std::endl;
             break;
         }
         //std::cout << "task " << signalIndex << " size " << compressedSignalSize << std::endl;
@@ -330,7 +333,7 @@ Out parseSHT(const char* path, const unsigned int reqC, char* requests) { // ada
         workers.clear();
     }
 
-    int totalOutSize = 0;
+    size_t totalOutSize = 0;
     for(int signalIndex = 0; signalIndex < out.size; signalIndex++){
         totalOutSize += outs[signalIndex].size;
     }
@@ -345,7 +348,6 @@ Out parseSHT(const char* path, const unsigned int reqC, char* requests) { // ada
         delete[] outs[signalIndex].point;
     }
     //std::cout << "c++ OK " << out.size << std::endl;
-
     return out;
 }
 
@@ -567,7 +569,7 @@ CompressedHoff compressHoffman(const CompressedRLE* uncompressed){
 
     return CompressedHoff{
             (char*) outBuff,
-            (cSize + 511 + (int)sizeof(int))
+            (size_t)(cSize + 511 + (size_t)sizeof(int))
     };
 }
 
@@ -593,7 +595,7 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
             default:
                 std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
 
-                out.size = -2;
+                out.size = 0;
                 return out;
         }
 
@@ -671,7 +673,7 @@ Out pacADC(const int signalCount, const char* headers, const char* data){
             default:
                 std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
 
-                out.size = -2;
+                out.size = 0;
                 return out;
         }
 

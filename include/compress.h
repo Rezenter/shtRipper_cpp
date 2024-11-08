@@ -54,16 +54,16 @@ public:
 
 typedef struct {
     const char* data;
-    const int size;
+    const size_t size;
 } CompressedHoff;
 typedef struct {
-    int size;
+    size_t size;
     char* point;
 } Out;
 class CompressedRLE{
 public:
     unsigned char* data;
-    const int size;
+    const size_t size;
 
     explicit CompressedRLE(const int size) : size(size){
         data = new unsigned char [size];
