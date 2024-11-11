@@ -1,4 +1,3 @@
-#include "version.h"
 #include "compress.h"
 
 #if defined(_MSC_VER)

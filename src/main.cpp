@@ -1,4 +1,3 @@
-#include "version.h"
 #include <iostream>
 #include "compress.h"
 
@@ -11,7 +10,7 @@ void delay(){
 }
 
 void read(){
-    std::cout << "CPP shtRipper, revision:" << REVISION << "\n" << std::endl << std::flush;
+    std::cout << "CPP shtRipper" << std::endl << std::flush;
 
     std::string inFilename = "d:/data/cfm/original/sht40808.SHT";
     //std::string inFilename = "d:/tmp/TS.SHT";

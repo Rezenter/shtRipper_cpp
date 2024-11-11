@@ -13,10 +13,10 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${BUILD_ARCH}")
 
 include_directories(${CMAKE_SOURCE_DIR} include)
 
-add_executable(shtRipper src/main.cpp version.h src/compress.cpp)
+add_executable(shtRipper src/main.cpp src/compress.cpp)
 target_link_libraries(shtRipper pthread)
 
-add_library(ripperForPython MODULE src/pythonWrapper.cpp version.h src/compress.cpp)
+add_library(ripperForPython MODULE src/pythonWrapper.cpp src/compress.cpp)
 
 install(TARGETS ripperForPython
         CONFIGURATIONS Debug
