@@ -1,0 +1,18 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.idea
+/.vs
+/cmake-build-debug
+/cmake-build-debug-visual-studio
+/cmake-build-release
+/cmake-build-release-visual-studio
+/cmake-build-release_32
+/out/build
+/python/.idea
+/python/playground/in
+/python/shtRipper/__pycache__
+/python/shtRipper_cpp.egg-info
+/python/dump.json
+/CMakeSettings.json

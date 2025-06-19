@@ -164,25 +164,44 @@ void worker(){
     }
 }
 
-void appendOut(const CombiscopeHistogram* histogram){
+void appendOut(const CombiscopeHistogram* histogram) {
     //std::cout << "appendOut()" << std::endl;
     lockOut.lock();
     bool found = (reqCount == 0);
-    for(int i = 0; i < reqCount; i++) {
+    for (int i = 0; i < reqCount; i++) {
         int char_i;
         for (char_i = 0; char_i < 128; char_i++) {
             if (histogram->name[char_i] != req[i * 128 + char_i]) {
                 break;
             }
         }
-        if(char_i == 128 || req[i * 128 + char_i] == 0)  {
+        if (char_i == 128 || req[i * 128 + char_i] == 0) {
             found = true;
             break;
         }
     }
 
-    if(found) {
-        outs[out.size].size = SIGNAL_HEADER_SIZE + (histogram->nPoints * 2) * sizeof(double);
+    if (found) {
+        switch (histogram->type >> 16) {
+        case 0: {
+            outs[out.size].size = SIGNAL_HEADER_SIZE + (histogram->nPoints * 2) * sizeof(double);
+            break;
+            }
+        case 1: {
+            outs[out.size].size = SIGNAL_HEADER_SIZE + (histogram->nPoints * 2) * sizeof(double);
+            break;
+            }
+        case 2: {
+            outs[out.size].size = SIGNAL_HEADER_SIZE + (histogram->nPoints * 3) * sizeof(double);
+            break;
+            }
+        default: {
+            std::cout << "Unknown type" << std::endl;
+            outs[out.size].size = SIGNAL_HEADER_SIZE;
+            break;
+            }
+        }
+        //outs[out.size].size = SIGNAL_HEADER_SIZE + (histogram->nPoints * 2) * sizeof(double);
         //std::cout << "appendOut() out size: " << outs[out.size].size << std::endl;
         outs[out.size].point = new char[outs[out.size].size];
 
@@ -190,14 +209,14 @@ void appendOut(const CombiscopeHistogram* histogram){
 
         char* ptr = outs[out.size].point + SIGNAL_HEADER_SIZE;
         auto *dBuff = (double *) (ptr);
+        auto* lBuff = (long*)(ptr);
         out.size += 1;
         lockOut.unlock();
-
+        LongFlip flip{ 0 };
+        LongToDouble convert{ 0 };
         switch (histogram->type >> 16) {
             case 0: {
                 double tMult = (histogram->tMax - histogram->tMin) / (histogram->nPoints - 1);
-
-                LongFlip flip{0};
                 for (int i = 0; i < histogram->nPoints; i++) {
                     flip.asChar[0] = histogram->data[i];
                     flip.asChar[1] = histogram->data[histogram->nPoints + i];
@@ -205,15 +224,85 @@ void appendOut(const CombiscopeHistogram* histogram){
                     flip.asChar[3] = histogram->data[histogram->nPoints * 3 + i];
 
                     dBuff[i] = i * tMult + histogram->tMin;
-                    dBuff[i + histogram->nPoints] = flip.asLong * histogram->delta + histogram->yMin; // y coordinates
+                    dBuff[i + histogram->nPoints] = (double)flip.asLong * histogram->delta + histogram->yMin; // y coordinates
                 }
                 break;
             }
             case 1:
-                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
+                for (int i = 0; i < histogram->nPoints; i++) {
+                    flip.asChar[0] = histogram->data[ i * 4];
+                    flip.asChar[1] = histogram->data[(i * 4 + histogram->nPoints * 4)];
+                    flip.asChar[2] = histogram->data[(i * 4 + histogram->nPoints * 4 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 4 + histogram->nPoints * 4 * 3)];
+                    convert.asLong[0] = flip.asLong;
+                    flip.asChar[0] = histogram->data[ i * 4 + 1];
+                    flip.asChar[1] = histogram->data[(i * 4 + 1 + histogram->nPoints * 4)];
+                    flip.asChar[2] = histogram->data[(i * 4 + 1 + histogram->nPoints * 4 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 4 + 1 + histogram->nPoints * 4 * 3 )];
+                    convert.asLong[1] = flip.asLong;
+                    dBuff[i] = convert.asDouble;
+                    
+                    flip.asChar[0] = histogram->data[ i * 4 + 2];
+                    flip.asChar[1] = histogram->data[(i * 4 + 2 + histogram->nPoints * 4)];
+                    flip.asChar[2] = histogram->data[(i * 4 + 2 + histogram->nPoints * 4 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 4 + 2 + histogram->nPoints * 4 * 3)];
+                    convert.asLong[0] = flip.asLong;
+                    flip.asChar[0] = histogram->data[ i * 4 + 3];
+                    flip.asChar[1] = histogram->data[(i * 4 + 3 + histogram->nPoints * 4)];
+                    flip.asChar[2] = histogram->data[(i * 4 + 3 + histogram->nPoints * 4 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 4 + 3 + histogram->nPoints * 4 * 3)];
+                    convert.asLong[1] = flip.asLong;
+                    dBuff[i + histogram->nPoints] = convert.asDouble;
+                }
                 break;
             case 2:
-                std::cout << "Not implemented. Please, give this .sht file to Nikita" << std::endl;
+                /*
+                for (int i = 0; i < histogram->nPoints * 6; i++) { // 2 long to double * 3 XYE
+                    flip.asChar[0] = histogram->data[i];
+                    flip.asChar[1] = histogram->data[(i + histogram->nPoints * 6)];
+                    flip.asChar[2] = histogram->data[(i + histogram->nPoints * 6 * 2)];
+                    flip.asChar[3] = histogram->data[(i + histogram->nPoints * 6 * 3)];
+                    lBuff[i] = flip.asLong;
+                }
+                //swap xyzxyzxyz -> xxxyyyzzz doubles!
+                */
+                for (int i = 0; i < histogram->nPoints; i++) {
+                    flip.asChar[0] = histogram->data[i * 6];
+                    flip.asChar[1] = histogram->data[(i * 6 + histogram->nPoints * 6)];
+                    flip.asChar[2] = histogram->data[(i * 6 + histogram->nPoints * 6 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 6 + histogram->nPoints * 6 * 3)];
+                    convert.asLong[0] = flip.asLong;
+                    flip.asChar[0] = histogram->data[i * 6 + 1];
+                    flip.asChar[1] = histogram->data[(i * 6 + 1 + histogram->nPoints * 6)];
+                    flip.asChar[2] = histogram->data[(i * 6 + 1 + histogram->nPoints * 6 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 6 + 1 + histogram->nPoints * 6 * 3)];
+                    convert.asLong[1] = flip.asLong;
+                    dBuff[i] = convert.asDouble;
+
+                    flip.asChar[0] = histogram->data[i * 6 + 2];
+                    flip.asChar[1] = histogram->data[(i * 6 + 2 + histogram->nPoints * 6)];
+                    flip.asChar[2] = histogram->data[(i * 6 + 2 + histogram->nPoints * 6 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 6 + 2 + histogram->nPoints * 6 * 3)];
+                    convert.asLong[0] = flip.asLong;
+                    flip.asChar[0] = histogram->data[i * 6 + 3];
+                    flip.asChar[1] = histogram->data[(i * 6 + 3 + histogram->nPoints * 6)];
+                    flip.asChar[2] = histogram->data[(i * 6 + 3 + histogram->nPoints * 6 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 6 + 3 + histogram->nPoints * 6 * 3)];
+                    convert.asLong[1] = flip.asLong;
+                    dBuff[i + histogram->nPoints] = convert.asDouble;
+
+                    flip.asChar[0] = histogram->data[i * 6 + 4];
+                    flip.asChar[1] = histogram->data[(i * 6 + 4 + histogram->nPoints * 6)];
+                    flip.asChar[2] = histogram->data[(i * 6 + 4 + histogram->nPoints * 6 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 6 + 4 + histogram->nPoints * 6 * 3)];
+                    convert.asLong[0] = flip.asLong;
+                    flip.asChar[0] = histogram->data[i * 6 + 5];
+                    flip.asChar[1] = histogram->data[(i * 6 + 5 + histogram->nPoints * 6)];
+                    flip.asChar[2] = histogram->data[(i * 6 + 5 + histogram->nPoints * 6 * 2)];
+                    flip.asChar[3] = histogram->data[(i * 6 + 5 + histogram->nPoints * 6 * 3)];
+                    convert.asLong[1] = flip.asLong;
+                    dBuff[i + histogram->nPoints * 2] = convert.asDouble;
+                }
                 break;
             default:
                 break;
@@ -585,94 +674,18 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
 
         switch (raw_in->type>>16){
             case 0:
-                break;
+                break;          //type for raw ADC registers. X scale is defined by t_min, t_max and point_count. Y is defined by y_min, y_max and data array
+                                //this is the original combiscope format. Other types do not support most of the operations.
             case 1:
                 flipSize *= 4; // 2 from long->double; 2 from x and y
+                                //both x and y are defined by arrays. Allows irregular X steps
                 break;
             case 2:
                 flipSize *= 6; // 2 from long->double; 3 from x, y and z
+                                // allows to store Y error bars
                 break;
             default:
-                std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
-
-                out.size = 0;
-                return out;
-        }
-
-        int signalSize = sizeof(CombiscopeHistogram) - 8 + flipSize * sizeof(long);
-
-        auto* buffer = new unsigned char[signalSize];
-        std::memcpy(buffer, raw_in, sizeof(CombiscopeHistogram) - 8);
-        auto* buffPosition = buffer + sizeof(CombiscopeHistogram) - 8;
-
-
-        LongFlip flip{0};
-
-        for (int i = 0; i < flipSize; i++) {
-            flip.asLong = currData[i];
-            std::memcpy(buffPosition + i, &flip.asChar[0], sizeof(char));
-            std::memcpy(buffPosition + i + flipSize, &flip.asChar[1], sizeof(char));
-            std::memcpy(buffPosition + i + flipSize * 2, &flip.asChar[2], sizeof(char));
-            std::memcpy(buffPosition + i + flipSize * 3, &flip.asChar[3], sizeof(char));
-        }
-        currData += flipSize;
-
-        CompressedRLE *rle = compressRLE((CombiscopeHistogram *) buffer, signalSize);
-        delete[] buffer;
-
-        CompressedHoff packed = compressHoffman(rle);
-        delete rle;
-
-        totalSize += packed.size + sizeof(int);
-        outQueue[signalIndex] = Out{
-                packed.size,
-                const_cast<char *>(packed.data)
-        };
-
-    }
-
-    out.point = new char[totalSize];
-    std::memcpy(out.point, V2, sizeof(V2));
-    out.size += sizeof(V2);
-    std::memcpy(out.point + out.size, &signalCount, sizeof(int));
-    out.size += sizeof(int);
-    for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
-        std::memcpy(out.point + out.size, &outQueue[signalIndex].size, sizeof(int));
-        out.size += sizeof(int);
-        std::memcpy(out.point + out.size, outQueue[signalIndex].point, outQueue[signalIndex].size);
-        out.size += outQueue[signalIndex].size;
-
-        delete[] outQueue[signalIndex].point;
-    }
-    delete[] outQueue;
-
-    return out;
-}
-
-Out pacADC(const int signalCount, const char* headers, const char* data){
-    //COPYPASTED!
-
-    innerFreeOut();
-
-    auto* currData = (long*)data;
-    auto outQueue = new Out[signalCount];
-    int totalSize = sizeof(V2) + sizeof(int);
-    for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
-        auto* raw_in = (CombiscopeHistogram *) (headers + sizeof(CombiscopeHistogram) * signalIndex);
-        int flipSize = raw_in->nPoints;
-
-        switch (raw_in->type>>16){
-            case 0:
-                break;
-            case 1:
-                flipSize *= 4; // 2 from long->double; 2 from x and y
-                break;
-            case 2:
-                flipSize *= 6; // 2 from long->double; 3 from x, y and z
-                break;
-            default:
-                std::cout << "WTF? Not implemented. Please, give this .sht file to Nikita" << std::endl;
-
+                std::cout << "WTF? Not implemented. Please, give this *.sht file to Nikita" << std::endl;
                 out.size = 0;
                 return out;
         }

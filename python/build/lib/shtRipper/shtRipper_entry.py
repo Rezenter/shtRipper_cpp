@@ -183,9 +183,8 @@ class Ripper:
                 offset += entry['size']
             self.data = ctypes.cast(ctypes.pointer(_data), ctypes.c_char_p)
 
-    def __init__(self):
+    def __init__(self, debug=False):
         print('shtRipper v1.5.2')
-        debug = True
         if platform.system() == 'Windows':
             if debug:
                 print('RUNNING DEBUG DLL!')
@@ -285,22 +284,11 @@ class Ripper:
                 signal['y'] = data_y[:]
 
             elif header.type >> 16 == 1:
-                data_x = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
-                curr += header.count * 8
-                data_y = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
-                curr += header.count * 8
-                signal['x'] = data_x[:]
-                signal['y'] = data_y[:]
+                print('!!! this file type is not supported yet. Please, give it to Nikita.')
+                curr += header.count * 8 * 2
             elif header.type >> 16 == 2:
-                data_x = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
-                curr += header.count * 8
-                data_y = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
-                curr += header.count * 8
-                data_z = ctypes.cast(ctypes.byref(resp.point.contents, curr), ctypes.POINTER(ctypes.c_double * header.count)).contents
-                curr += header.count * 8
-                signal['x'] = data_x[:]
-                signal['y'] = data_y[:]
-                signal['z'] = data_z[:]
+                print('!!! this file type is not supported yet. Please, give it to Nikita.')
+                curr += header.count * 8 * 3
             try:
                 res[header.name.decode(encoding)] = signal
             except UnicodeDecodeError:

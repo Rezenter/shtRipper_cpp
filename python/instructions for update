@@ -3,3 +3,6 @@
 2) clear build, dist, egg folders
 3) python setup.py sdist bdist_wheel
 4) twine upload dist/*
+
+token:
+pypi-AgEIcHlwaS5vcmcCJDdiM2QyZDQ4LTdiNjYtNDc3NC1hOTYzLWRiYjE5MmNiNDRjMAACFVsxLFsic2h0cmlwcGVyLWNwcCJdXQACLFsyLFsiYmZiOTJkM2ItMTU4Mi00MzY2LTlmOTgtMWMwNDNkOWYzNjdkIl1dAAAGIJwpx0dc0B5ctycXWVwqpvjXX3ZVctsbl9DK5ea8KvnH

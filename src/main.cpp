@@ -148,8 +148,8 @@ void pack(){
 }
 
 int main(int argc, char* argv[]) {
-    read();
-    //pack();
+    //read();
+    pack();
 
     std::cout << "\nNormal exit." << std::endl << std::flush;
     delay();

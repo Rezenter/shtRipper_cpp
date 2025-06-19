@@ -77,6 +77,10 @@ union LongFlip{
     long asLong;
     unsigned char asChar[4];
 };
+union LongToDouble {
+    long asLong[2];
+    double asDouble;
+};
 
 static std::vector<std::thread> workers;
 static std::vector<CompressedHoff> tasks;
@@ -97,7 +101,6 @@ CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
 void appendOut(const CombiscopeHistogram*);
 
 Out packSHT(int signalCount, const char* headers, const char* data);
-Out packADC(int signalCount, const char* header, const char* data);
 CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed, const int size);
 CompressedHoff compressHoffman(const CompressedRLE* uncompressed);
 
