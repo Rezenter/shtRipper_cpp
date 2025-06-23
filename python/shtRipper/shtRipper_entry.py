@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 import platform
 from datetime import datetime
+import struct
 
 # require python >= 3.5 for ctypes compiler match
 
@@ -181,7 +182,62 @@ class Ripper:
             for entry in py_data:
                 ctypes.memmove(ctypes.byref(_data, offset), ctypes.pointer(entry['data']), entry['size'])
                 offset += entry['size']
+
             self.data = ctypes.cast(ctypes.pointer(_data), ctypes.c_char_p)
+
+    class _UnpackedADC:
+        def __init__(self, data: dict):
+            self.error = ''
+            py_headers = []
+
+            if 'ch' not in data or len(data['ch']) != 16:
+                self.error = 'Error: data description must cover 16 channels'
+                return
+            if 'yRes' not in data:
+                self.error = 'Error: bad signal format:  yRes is required.'
+                return
+            for ch_ind in range(16):
+                ch = data['ch'][ch_ind]
+                header = _Header()
+                header.type = 0 << 16
+                header.time = _Time()
+                header.count = 0
+                header.yMin = 0
+                if 'skip' in ch and ch['skip']:
+                    header.tMin = 999
+                    header.tMax = -999
+
+                    header.name = 'NONE'[:128].encode(encoding)
+                    header.comment = 'NONE'[:128].encode(encoding)
+                    header.unit = 'NONE'[:128].encode(encoding)
+                    header.delta = 999
+                else:
+                    if 'name' in ch:
+                        header.name = ch['name'][:128].encode(encoding)
+                    else:
+                        header.name = ('channel %d' % ch_ind)[:128].encode(encoding)
+                    if 'comment' in ch:
+                        header.comment = ch['comment'][:128].encode(encoding)
+                    else:
+                        header.comment = ('channel %d' % ch_ind)[:128].encode(encoding)
+                    if 'unit' in ch:
+                        header.unit = ch['unit'][:128].encode(encoding)
+                    else:
+                        header.unit = 'Voltage(V)'.encode(encoding)
+                    if 'tMin' in data:
+                        header.tMin = data['tMin']
+                    else:
+                        header.tMin = 0
+                    header.tMax = 999
+                    header.delta = data['yRes']/32768
+                py_headers.append(header)
+
+            _headers = (ctypes.c_char * (ctypes.sizeof(_Header) * 16))()
+            for header_ind in range(len(py_headers)):
+                ctypes.memmove(ctypes.byref(_headers, ctypes.sizeof(_Header) * header_ind),
+                               ctypes.pointer(py_headers[header_ind]), ctypes.sizeof(_Header))
+            self.headers = ctypes.cast(ctypes.pointer(_headers), ctypes.c_char_p)
+
 
     def __init__(self):
         print('shtRipper v1.5.2')
@@ -210,6 +266,9 @@ class Ripper:
 
         self.lib.cram.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p]
         self.lib.cram.restype = _Array
+
+        self.lib.cramADC.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p]
+        self.lib.cramADC.restype = _Array
 
         self.lib.freeOut.argtypes = None
         self.lib.freeOut.restype = None
@@ -314,7 +373,7 @@ class Ripper:
     def write(self, path: str, filename: str, data: dict) -> str:
         filepath = Path(path)
         if not filepath.is_dir():
-            err: str = 'requested path "%s" does not exist.' % filename
+            err: str = 'requested path "%s" does not exist.' % path
             print(err)
             return err
 
@@ -346,22 +405,65 @@ class Ripper:
         return bytearray(buff.contents)
 
     def write_ADC(self, path: str, filename: str, data: dict) -> str:
+        #print('debug write ADC: ', path, filename, data)
         filepath = Path(path)
         if not filepath.is_dir():
             err: str = 'requested path "%s" does not exist.' % filename
             print(err)
             return err
 
-        prepared_data = self._Unpacked(data)
+        prepared_data = self._UnpackedADC(data)
         if prepared_data.error != '':
             print(prepared_data.error)
             return prepared_data.error
 
-        resp = self.lib.cramADC(ctypes.c_int(prepared_data.count), prepared_data.headers, prepared_data.data)
-        if resp.size < 0:
+        pathStr = str(filepath.absolute()) + '\\' + filename + '\0'
+        path_p = ctypes.c_char_p(pathStr.encode())
+        #or loaded raw data
+
+        resp = self.lib.cramADC(ctypes.c_int(0), prepared_data.headers, path_p)
+        if resp.size <= 0:
             return 'dll error %d' % resp.size
 
-        with open('%s/%s' % (filepath, filename), 'wb') as file:
+        with open('%s/%s.sht' % (filepath, filename), 'wb') as file:
             buff = ctypes.cast(resp.point, ctypes.POINTER(ctypes.c_char * resp.size))
             file.write(bytearray(buff.contents))
+        return ''
+
+    def merge(self, path: str, filename: str, shts: list[str]) -> str:
+        filepath = Path(path).absolute()
+        if not filepath.is_dir():
+            err: str = 'requested path "%s" does not exist.' % path
+            print(err)
+            return err
+
+        data = []
+        total_count = 0
+        for sht in shts:
+            p = Path(sht)
+            #print('Reading file: ', str(path.absolute()))
+            if not p.is_file():
+                err: str = 'requested file "%s" does not exist.' % p
+                print(err)
+                return {
+                    'ok': False,
+                    'err': err
+                }
+            
+            with open(sht, 'rb') as file:
+                file.seek(12, 0) 
+                count = struct.unpack('i', file.read(4))[0]
+                total_count += count
+                data += file.read()
+                #print(len(data))
+            #print('Found %d signals.' % count)
+        #print('Merged %d signals' % total_count)
+
+        with open('%s\\%s' % (filepath, filename), 'wb') as file:
+            s = "ANALIZER1.2"
+            file.write(s.encode('ascii'))
+            file.write(bytes([0]))
+            file.write(struct.pack('i', total_count))
+            file.write(bytearray(data))
+
         return ''

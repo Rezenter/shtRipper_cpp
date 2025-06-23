@@ -101,6 +101,7 @@ CombiscopeHistogram* DecompressRLE(const CompressedRLE* compressed);
 void appendOut(const CombiscopeHistogram*);
 
 Out packSHT(int signalCount, const char* headers, const char* data);
+Out packADC(int signalCount, const char* headers, const char* data);
 CompressedRLE* compressRLE(const CombiscopeHistogram* uncompressed, const int size);
 CompressedHoff compressHoffman(const CompressedRLE* uncompressed);
 

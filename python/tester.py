@@ -9,7 +9,7 @@ import time
 
 #filename = '/home/nz/Downloads/sht41384.SHT'
 filename = '\\\\172.16.12.127\\Data\\sht41384.SHT'
-filename = '\\\\172.16.12.127\\Pub\\!!!TS_RESULTS\\shots\\46127\\TS_46127.SHT'
+filename2 = '\\\\172.16.12.127\\Pub\\!!!TS_RESULTS\\shots\\46127\\TS_46127.SHT'
 filename = 'test.sht'
 
 times = [0, 1, 2, 4]
@@ -43,6 +43,10 @@ print("--- %.2f seconds ---" % (time.time() - start_time))
 
 with open('dump.json', 'w') as file:
     json.dump(res, file, indent=2)
+
+ripper.merge('', 'merged.sht', [filename, filename2])
+#ripper.merge('', 'merged.sht', [filename])
+
 
 for i in range(50000000):  # wait for possible errors in dll
     d = 56784678 / 5423621543

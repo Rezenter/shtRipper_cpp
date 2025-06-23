@@ -2,6 +2,7 @@
 #include <fstream>
 #include <cstring>
 
+
 int DefineVersion(const char * str){
     if (strcmp(str, V0) == 0){
         return 0;
@@ -256,16 +257,6 @@ void appendOut(const CombiscopeHistogram* histogram) {
                 }
                 break;
             case 2:
-                /*
-                for (int i = 0; i < histogram->nPoints * 6; i++) { // 2 long to double * 3 XYE
-                    flip.asChar[0] = histogram->data[i];
-                    flip.asChar[1] = histogram->data[(i + histogram->nPoints * 6)];
-                    flip.asChar[2] = histogram->data[(i + histogram->nPoints * 6 * 2)];
-                    flip.asChar[3] = histogram->data[(i + histogram->nPoints * 6 * 3)];
-                    lBuff[i] = flip.asLong;
-                }
-                //swap xyzxyzxyz -> xxxyyyzzz doubles!
-                */
                 for (int i = 0; i < histogram->nPoints; i++) {
                     flip.asChar[0] = histogram->data[i * 6];
                     flip.asChar[1] = histogram->data[(i * 6 + histogram->nPoints * 6)];
@@ -728,6 +719,133 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
     std::memcpy(out.point + out.size, &signalCount, sizeof(int));
     out.size += sizeof(int);
     for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
+        std::memcpy(out.point + out.size, &outQueue[signalIndex].size, sizeof(int));
+        out.size += sizeof(int);
+        std::memcpy(out.point + out.size, outQueue[signalIndex].point, outQueue[signalIndex].size);
+        out.size += outQueue[signalIndex].size;
+
+        delete[] outQueue[signalIndex].point;
+    }
+    delete[] outQueue;
+
+    return out;
+}
+
+Out packADC(const int signalCount, const char* headers, const char* data) {
+    const uint8_t chMap[16] = {0, 2, 4, 6, 10, 8, 14, 12, 1, 3, 5, 7, 11, 9, 15, 13};
+  //const uint8_t chMap[16] = {0, 8, 1, 9, 2, 10, 3, 11, 5, 13, 4, 12, 7, 15, 6, 14};
+
+    innerFreeOut();
+    uint32_t pointCount = 0;
+    char* compressed;
+    bool deleteMe = false;
+    if(signalCount == 0){
+        //std::cout << data << std::endl;
+        //data = path;
+
+        std::string p(data);
+        //std::cout << "pack ADC from file: " << p << std::endl;
+
+        std::ifstream input(p, std::ios::binary);
+        if (!input.is_open()) {
+            std::cout << "failed to open " << p << std::endl;
+            out.size = 0;
+            return out;
+        }
+        input.seekg(0, std::ios_base::end);
+        uint32_t rawSize = input.tellg();
+        input.seekg(0, std::ios_base::beg);
+        if (rawSize % (16 * 2) != 0) {
+            std::cout << "File size is not X*16*2 bytes: " << rawSize % (16 * 2) << ' ' << rawSize << std::endl;
+            out.size = 0;
+            return out;
+        }
+        pointCount = rawSize / (16 * 2);
+        deleteMe = true;
+        compressed = new char[rawSize];
+        input.read(compressed, rawSize);
+        input.close();
+        if (input.gcount() != rawSize) {
+            std::cout << "Bad file size: " << input.gcount() << ' ' << rawSize << std::endl;
+            delete[] compressed;
+            out.size = 0;
+            return out;
+        }
+    }else{ 
+        //data = data;
+
+        std::cout << "pack ADC: data is data "  << std::endl;
+        /*
+        if (rawSize % (16 * 2) != 0) {
+            std::cout << "File size is not X*16*2 bytes: " << rawSize % (16 * 2) << ' ' << rawSize << std::endl;
+            out.size = 0;
+            return out;
+        }*/
+    }
+
+
+    auto* asRegister = (int16_t*)(compressed);
+    auto outQueue = new Out[16];
+    int totalSize = sizeof(V2) + sizeof(int);
+    const char zero = 0;
+    LongFlip flip;
+    int sc = 0;
+    for (int signalIndex = 0; signalIndex < 16; signalIndex++) {
+        auto* raw_in = (CombiscopeHistogram*)(headers + sizeof(CombiscopeHistogram) * signalIndex);
+        if (raw_in->tMax < raw_in->tMin) {
+            //std::cout << "skip ch = " << signalIndex << std::endl;
+            continue;
+        }
+        
+        raw_in->nPoints = pointCount;
+        raw_in->tMax = raw_in->tMin + pointCount / (5e5 * 0.987652); // 500kHz with correction
+
+        int signalSize = sizeof(CombiscopeHistogram) - 8 + pointCount * sizeof(long);
+        auto* buffer = new unsigned char[signalSize];
+        std::memcpy(buffer, raw_in, sizeof(CombiscopeHistogram) - 8);
+        auto* buffPosition = buffer + sizeof(CombiscopeHistogram) - 8;
+
+        for (uint32_t i = 0; i < pointCount; i++) {
+
+            flip.asLong = asRegister[16 * i + chMap[signalIndex]];
+            std::memcpy(buffPosition + i, &flip.asChar[0], sizeof(char));
+            std::memcpy(buffPosition + i + pointCount, &flip.asChar[1], sizeof(char));
+            std::memcpy(buffPosition + i + pointCount * 2, &flip.asChar[2], sizeof(char));
+            std::memcpy(buffPosition + i + pointCount * 3, &flip.asChar[3], sizeof(char));
+        }
+
+        CompressedRLE* rle = compressRLE((CombiscopeHistogram*)buffer, signalSize);
+        delete[] buffer;
+
+        CompressedHoff packed = compressHoffman(rle);
+        delete rle;
+
+        totalSize += packed.size + sizeof(int);
+        outQueue[signalIndex] = Out{
+                packed.size,
+                const_cast<char*>(packed.data)
+        };
+        sc++;
+    }
+
+    if (deleteMe) {
+        delete[] compressed;
+        deleteMe = false;
+    }
+
+    out.point = new char[totalSize];
+    std::memcpy(out.point, V2, sizeof(V2));
+    out.size += sizeof(V2);
+
+    std::memcpy(out.point + out.size, &sc, sizeof(int));
+    out.size += sizeof(int);
+    for (int signalIndex = 0; signalIndex < 16; signalIndex++) {
+        auto* raw_in = (CombiscopeHistogram*)(headers + sizeof(CombiscopeHistogram) * signalIndex);
+        if (raw_in->tMax < raw_in->tMin) {
+            //std::cout << "skip ch = " << signalIndex << std::endl;
+            continue;
+        }
+
         std::memcpy(out.point + out.size, &outQueue[signalIndex].size, sizeof(int));
         out.size += sizeof(int);
         std::memcpy(out.point + out.size, outQueue[signalIndex].point, outQueue[signalIndex].size);

@@ -16,3 +16,9 @@
 /python/shtRipper_cpp.egg-info
 /python/dump.json
 /CMakeSettings.json
+/python/shtRipper/binary/ripperForPython.dll
+*.slow
+*.sht
+*.csv
+/python/test.sht
+/python/__pycache__
