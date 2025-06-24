@@ -196,12 +196,21 @@ class Ripper:
             if 'yRes' not in data:
                 self.error = 'Error: bad signal format:  yRes is required.'
                 return
+            if 'frequencyHz' not in data:
+                self.error = 'Error: bad signal format:  frequency is required.'
+                return
+            if data['frequencyHz'] <= 0:
+                self.error = 'Error: bad signal format:  frequency must be positive.'
+                return
             for ch_ind in range(16):
                 ch = data['ch'][ch_ind]
                 header = _Header()
                 header.type = 0 << 16
                 header.time = _Time()
-                header.count = 0
+                if 'chMap' in data and data['chMap']:
+                    header.count = 1
+                else:
+                    header.count = 0
                 header.yMin = 0
                 if 'skip' in ch and ch['skip']:
                     header.tMin = 999
@@ -215,21 +224,27 @@ class Ripper:
                     if 'name' in ch:
                         header.name = ch['name'][:128].encode(encoding)
                     else:
-                        header.name = ('channel %d' % ch_ind)[:128].encode(encoding)
+                        if 'comment' in ch:
+                            header.name = ch['comment'][:128].encode(encoding)
+                        else:
+                            header.name = ('channel %d' % (ch_ind + 1))[:128].encode(encoding)
                     if 'comment' in ch:
                         header.comment = ch['comment'][:128].encode(encoding)
                     else:
-                        header.comment = ('channel %d' % ch_ind)[:128].encode(encoding)
+                        header.comment = ('channel %d' % (ch_ind + 1))[:128].encode(encoding)
                     if 'unit' in ch:
                         header.unit = ch['unit'][:128].encode(encoding)
                     else:
-                        header.unit = 'Voltage(V)'.encode(encoding)
+                        header.unit = 'V(V)'.encode(encoding)
                     if 'tMin' in data:
                         header.tMin = data['tMin']
                     else:
                         header.tMin = 0
-                    header.tMax = 999
-                    header.delta = data['yRes']/32768
+                    if 'yRes' in ch:
+                        header.delta = ch['yRes'] / 32768
+                    else:
+                        header.delta = data['yRes'] / 32768
+                    header.tMax = data['frequencyHz']
                 py_headers.append(header)
 
             _headers = (ctypes.c_char * (ctypes.sizeof(_Header) * 16))()
@@ -240,8 +255,9 @@ class Ripper:
 
 
     def __init__(self):
-        print('shtRipper v1.5.2')
-        debug = True
+        print('shtRipper v1.6.1')
+        #debug = True
+        debug = False
         if platform.system() == 'Windows':
             if debug:
                 print('RUNNING DEBUG DLL!')

@@ -16,6 +16,8 @@ filename = 'adc_data.slow'
 
 to_pack = {
     'yRes': 5,
+    'chMap': True,
+    'frequencyHz': 500e3 * 0.987652,
     'ch': [
         {
             'name': 'name 1',

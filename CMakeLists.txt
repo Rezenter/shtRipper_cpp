@@ -16,7 +16,8 @@ include_directories(${CMAKE_SOURCE_DIR} include)
 #add_executable(shtRipper src/main.cpp src/compress.cpp)
 
 add_library(ripperForPython MODULE src/pythonWrapper.cpp src/compress.cpp)
-
+set_property(TARGET ripperForPython PROPERTY
+  MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
 install(TARGETS ripperForPython
         CONFIGURATIONS Debug

@@ -9,7 +9,7 @@ ripper = shtRipper.ripper
 shotn = 46040
 sht_path = '\\\\172.16.12.127\\Data\\'
 slow_path = '\\\\192.168.10.41\\d\\data\\db\\plasma\\slow\\raw\\'
-TS_path = ''
+TS_path = '\\\\172.16.12.127\\Pub\\!!!TS_RESULTS\\shots\\'
 cfm_path = '\\\\172.16.12.127\\Pub\\!!!CURRENT_COIL_METHOD\\V3_zad7_mcc\\mcc0d_'
 Tukhmeneva_path = '\\\\172.16.12.127\\Pub\\!!!SHT Tuxmeneva\\'
 diamagnetic_path = '\\\\172.16.12.127\\Pub\\!diamagnetic_data\\sht\\'
@@ -21,6 +21,8 @@ filenames = ['192.168.10.50.slow',
 
 to_pack = {
     'yRes': 5,
+    'chMap': True,
+    'frequencyHz': 500e3 * 0.987652,
     'ch': [
         {
             'name': 'laser Sync',
@@ -73,6 +75,8 @@ for file in filenames:
     packed = shtRipper.ripper.write_ADC(path=path, filename=file, data=to_pack)
     merge.append('%s\\%s.sht' % (path, file))
 
+merge.append('%s%d\\TS_%d.SHT' % (TS_path, shotn, shotn))
+
 merge.append('%s%d.SHT' % (cfm_path, shotn))
 
 merge.append('%sSPC%d_1.SHT' % (Tukhmeneva_path, shotn))
@@ -88,5 +92,8 @@ ripper.merge('', 'all_%d.sht' % shotn, merge)
 
 for i in range(5000000):  # wait for possible errors in dll
     d = 56784678 / 5423621543
+
+res = ripper.read('all_%d.sht' % shotn)
+print(res.keys())
 
 print('OK.')

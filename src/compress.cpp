@@ -732,8 +732,11 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
 }
 
 Out packADC(const int signalCount, const char* headers, const char* data) {
-    const uint8_t chMap[16] = {0, 2, 4, 6, 10, 8, 14, 12, 1, 3, 5, 7, 11, 9, 15, 13};
+    const uint8_t chMapShuffled[16] = {0, 2, 4, 6, 10, 8, 14, 12, 1, 3, 5, 7, 11, 9, 15, 13};
+    const uint8_t chMapReversed[16] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
   //const uint8_t chMap[16] = {0, 8, 1, 9, 2, 10, 3, 11, 5, 13, 4, 12, 7, 15, 6, 14};
+    const uint8_t* chMap;
+
 
     innerFreeOut();
     uint32_t pointCount = 0;
@@ -796,9 +799,16 @@ Out packADC(const int signalCount, const char* headers, const char* data) {
             //std::cout << "skip ch = " << signalIndex << std::endl;
             continue;
         }
+        if (raw_in->nPoints == 0) {
+            chMap = chMapReversed;
+        }
+        else {
+            chMap = chMapShuffled;
+        }
         
         raw_in->nPoints = pointCount;
-        raw_in->tMax = raw_in->tMin + pointCount / (5e5 * 0.987652); // 500kHz with correction
+        //raw_in->tMax = raw_in->tMin + pointCount / (5e5 * 0.987652); // 500kHz with correction
+        raw_in->tMax = raw_in->tMin + pointCount / raw_in->tMax; // 500kHz with correction
 
         int signalSize = sizeof(CombiscopeHistogram) - 8 + pointCount * sizeof(long);
         auto* buffer = new unsigned char[signalSize];
