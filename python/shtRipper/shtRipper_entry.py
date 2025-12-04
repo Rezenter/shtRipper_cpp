@@ -255,12 +255,12 @@ class Ripper:
 
 
     def __init__(self):
-        print('shtRipper v1.6.1')
+        print('shtRipper v1.6.3')
         #debug = True
         debug = False
         if platform.system() == 'Windows':
             if debug:
-                print('RUNNING DEBUG DLL!')
+                print('\n\nRUNNING DEBUG DLL!')
                 self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython.dll')
             else:
                 self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
