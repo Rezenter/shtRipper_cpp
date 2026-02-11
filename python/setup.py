@@ -6,7 +6,7 @@ with codecs.open('README.md', encoding='utf-8') as fh:
 
 setuptools.setup(
     name="shtRipper_cpp",
-    version="1.6.1",
+    version="1.6.3",
     author="Rezenter",
     author_email="nisovru@gmail.com",
     description="C++ parser of .sht files.",
@@ -16,7 +16,6 @@ setuptools.setup(
     packages=['shtRipper', 'shtRipper.binary'],
     classifiers=[
         "Programming Language :: Python :: 3.5",
-        "License :: OSI Approved :: MIT License",
         'Operating System :: Microsoft :: Windows :: Windows 10',
     ],
     python_requires='>=3.5',
@@ -26,5 +25,6 @@ setuptools.setup(
             'cursive = cursive.tools.cmd:cursive_command',
         ],
     },
-    include_package_data=True
+    include_package_data=True,
+    license = "MIT"
 )

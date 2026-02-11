@@ -5,7 +5,7 @@ import platform
 from datetime import datetime
 import struct
 
-# require python >= 3.5 for ctypes compiler match
+# require python >= 3.5 for ctypes compiler match and type hints
 
 # c++ toolchain: Visual Studio 2019 (pro). Version 16. Arc: x86_amd64. CMake: bundled
 # c++ toolchain: Visual Studio 2019 (pro). Version 16. Arc: x86. CMake: bundled
@@ -255,12 +255,12 @@ class Ripper:
 
 
     def __init__(self):
-        print('shtRipper v1.6.1')
+        print('shtRipper v1.6.3')
         #debug = True
         debug = False
         if platform.system() == 'Windows':
             if debug:
-                print('RUNNING DEBUG DLL!')
+                print('\n\nRUNNING DEBUG DLL!')
                 self.lib = ctypes.cdll.LoadLibrary('D:/code/shtRipper_cpp/python/shtRipper/binary/ripperForPython.dll')
             else:
                 self.lib = ctypes.cdll.LoadLibrary('%s\\binary\\ripperForPython_%d.dll' %
@@ -446,7 +446,7 @@ class Ripper:
             file.write(bytearray(buff.contents))
         return ''
 
-    def merge(self, path: str, filename: str, shts: list[str]) -> str:
+    def merge(self, path: str, filename: str, shts: list) -> str:
         filepath = Path(path).absolute()
         if not filepath.is_dir():
             err: str = 'requested path "%s" does not exist.' % path
