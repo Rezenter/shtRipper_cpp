@@ -1,7 +1,10 @@
 0) increment version.
 1) enter D:\code\shtRipper_cpp\python
 2) clear build, dist, egg folders
-3) python setup.py sdist bdist_wheel
-4) twine upload dist/*
+3) python3 setup.py sdist bdist_wheel
 
-token:see https://pypi.org/manage/account/token/?selected_project=shtRipper-cpp
+!!!run VPN/tor in was
+
+4) python3 -m twine upload dist/*
+
+token:see https://pypi.org/manage/accoHTTPS_PROXY=socks5://user:pass@host:port twine upload dist/*unt/token/?selected_project=shtRipper-cpp
