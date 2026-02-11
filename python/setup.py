@@ -5,7 +5,7 @@ with codecs.open('README.md', encoding='utf-8') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="shtRipper_cpp",
+    name="shtripper_cpp",
     version="1.6.3",
     author="Rezenter",
     author_email="nisovru@gmail.com",
