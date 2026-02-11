@@ -2,7 +2,6 @@
 #include <fstream>
 #include <cstring>
 
-
 int DefineVersion(const char * str){
     if (strcmp(str, V0) == 0){
         return 0;
@@ -208,9 +207,15 @@ void appendOut(const CombiscopeHistogram* histogram) {
 
         std::memcpy(outs[out.size].point, histogram, SIGNAL_HEADER_SIZE);
 
+        /*
+        std::cout << sizeof(double) << std::endl;
+        std::cout << sizeof(long) << std::endl << std::endl; // Windows = 4, Linux = 8
+        std::cout << sizeof(int32_t) << std::endl << std::endl; // Windows = 4, Linux = 4
+        */
+
         char* ptr = outs[out.size].point + SIGNAL_HEADER_SIZE;
         auto *dBuff = (double *) (ptr);
-        auto* lBuff = (long*)(ptr);
+        //auto* lBuff = (long*)(ptr);
         out.size += 1;
         lockOut.unlock();
         LongFlip flip{ 0 };
@@ -226,6 +231,12 @@ void appendOut(const CombiscopeHistogram* histogram) {
 
                     dBuff[i] = i * tMult + histogram->tMin;
                     dBuff[i + histogram->nPoints] = (double)flip.asLong * histogram->delta + histogram->yMin; // y coordinates
+
+                    /*
+                    if(i < 10){
+                        std::cout << dBuff[i + histogram->nPoints] << std::endl;
+                    }
+                     */
                 }
                 break;
             }
@@ -428,6 +439,8 @@ Out parseSHT(const char* path, const unsigned int reqC, char* requests) { // ada
         delete[] outs[signalIndex].point;
     }
     //std::cout << "c++ OK " << out.size << std::endl;
+
+
     return out;
 }
 
@@ -656,7 +669,7 @@ CompressedHoff compressHoffman(const CompressedRLE* uncompressed){
 Out packSHT(const int signalCount, const char* headers, const char* data){
     innerFreeOut();
 
-    auto* currData = (long*)data;
+    auto* currData = (int32_t*)data;
     auto outQueue = new Out[signalCount];
     int totalSize = sizeof(V2) + sizeof(int);
     for(int signalIndex = 0; signalIndex < signalCount; signalIndex++){
@@ -681,7 +694,7 @@ Out packSHT(const int signalCount, const char* headers, const char* data){
                 return out;
         }
 
-        int signalSize = sizeof(CombiscopeHistogram) - 8 + flipSize * sizeof(long);
+        int signalSize = sizeof(CombiscopeHistogram) - 8 + flipSize * sizeof(int32_t);
 
         auto* buffer = new unsigned char[signalSize];
         std::memcpy(buffer, raw_in, sizeof(CombiscopeHistogram) - 8);
